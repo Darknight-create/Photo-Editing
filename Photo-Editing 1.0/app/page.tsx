@@ -33,6 +33,9 @@ const collageCopy = {
     collageUpper: '上画幅',
     collageLower: '下画幅',
     collageUpload: '上传图片',
+    collageUploadBoth: '同时上传两张',
+    collageUploadBothHint: '一次选择两张图片，第一张在上，第二张在下',
+    collageSwap: '上下画幅互换',
     collageReplace: '替换图片',
     collageDrag: '按住并拖动图片调整取景',
     collageSelected: '当前画幅',
@@ -42,6 +45,13 @@ const collageCopy = {
     collageEmpty: '添加图片',
     collageReady: '已就绪',
     collageWaiting: '等待图片',
+    collagePatch: '矩形取景贴片',
+    collagePatchHelp: '选择来源画幅，拖出矩形；松手后贴片会出现在另一画幅。',
+    collagePatchStart: '开始框选',
+    collagePatchCancel: '取消框选',
+    collagePatchActive: '请在当前画幅拖出矩形',
+    collagePatchDelete: '删除选中贴片',
+    collagePatchEmpty: '还没有贴片',
   },
   en: {
     collageModule: 'slice collage',
@@ -51,6 +61,9 @@ const collageCopy = {
     collageUpper: 'upper frame',
     collageLower: 'lower frame',
     collageUpload: 'upload image',
+    collageUploadBoth: 'upload two images',
+    collageUploadBothHint: 'Choose two at once: first goes above, second below',
+    collageSwap: 'swap upper / lower',
     collageReplace: 'replace image',
     collageDrag: 'hold and drag to adjust the crop',
     collageSelected: 'selected frame',
@@ -60,12 +73,21 @@ const collageCopy = {
     collageEmpty: 'add image',
     collageReady: 'ready',
     collageWaiting: 'waiting',
+    collagePatch: 'crop patch',
+    collagePatchHelp: 'Choose a source frame and draw a rectangle. The patch appears on the other frame.',
+    collagePatchStart: 'draw a patch',
+    collagePatchCancel: 'cancel selection',
+    collagePatchActive: 'Drag a rectangle on the selected frame',
+    collagePatchDelete: 'delete selected patch',
+    collagePatchEmpty: 'no patches yet',
   },
 } as const;
 
 type AppCopy = (typeof copy)[Language] & (typeof collageCopy)[Language];
 type CollagePane = 'upper' | 'lower';
 type CollageImage = Upload & { width: number; height: number; positionX: number; positionY: number };
+type PatchSelection = { pane: CollagePane; x: number; y: number; width: number; height: number };
+type CollagePatch = PatchSelection & { id: number; src: string; targetPane: CollagePane; centerX: number; centerY: number };
 
 const emptyCollageImage = (): CollageImage => ({ src: '', name: '', width: 0, height: 0, positionX: 50, positionY: 50 });
 
@@ -324,24 +346,47 @@ function GalleryModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
 function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Language; setLanguage: (language: Language) => void }) {
   const [images, setImages] = useState<Record<CollagePane, CollageImage>>({ upper: emptyCollageImage(), lower: emptyCollageImage() });
   const [selectedPane, setSelectedPane] = useState<CollagePane>('upper');
+  const [patches, setPatches] = useState<CollagePatch[]>([]);
+  const [selectedPatchId, setSelectedPatchId] = useState<number | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selection, setSelection] = useState<PatchSelection | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadTargetRef = useRef<CollagePane>('upper');
+  const uploadModeRef = useRef<'single' | 'both'>('single');
   const dragRef = useRef<{ pane: CollagePane; pointerId: number; clientX: number; clientY: number; positionX: number; positionY: number } | null>(null);
+  const selectionStartRef = useRef<{ pane: CollagePane; pointerId: number; x: number; y: number } | null>(null);
+  const patchDragRef = useRef<{ id: number; pointerId: number; clientX: number; clientY: number; centerX: number; centerY: number } | null>(null);
   const readyCount = Number(Boolean(images.upper.src)) + Number(Boolean(images.lower.src));
 
-  const openUpload = (pane: CollagePane) => {
+  const openUpload = (pane: CollagePane, mode: 'single' | 'both' = 'single') => {
     uploadTargetRef.current = pane;
+    uploadModeRef.current = mode;
     setSelectedPane(pane);
     inputRef.current?.click();
   };
 
   const onFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/')).slice(0, 2);
     event.target.value = '';
-    if (!file || !file.type.startsWith('image/')) return;
-    const image = await readCollageFile(file);
+    if (!files.length) return;
+    const uploaded = await Promise.all(files.map(readCollageFile));
+    if (uploadModeRef.current === 'both' && uploaded.length > 1) {
+      setImages({ upper: uploaded[0], lower: uploaded[1] });
+      setSelectedPane('upper');
+      setPatches([]);
+      setSelectedPatchId(null);
+      return;
+    }
     const pane = uploadTargetRef.current;
-    setImages((current) => ({ ...current, [pane]: image }));
+    setImages((current) => ({ ...current, [pane]: uploaded[0] }));
+    setPatches((current) => current.filter((patch) => patch.pane !== pane));
+  };
+
+  const swapImages = () => {
+    setImages((current) => ({ upper: current.lower, lower: current.upper }));
+    setPatches((current) => current.map((patch) => ({ ...patch, pane: patch.pane === 'upper' ? 'lower' : 'upper', targetPane: patch.targetPane === 'upper' ? 'lower' : 'upper' })));
+    setSelectedPane((current) => current === 'upper' ? 'lower' : 'upper');
+    setSelection(null);
   };
 
   const updatePosition = (pane: CollagePane, positionX: number, positionY: number) => {
@@ -351,15 +396,80 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
     }));
   };
 
+  const pointInPane = (event: PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  const selectionFromPoints = (pane: CollagePane, startX: number, startY: number, endX: number, endY: number): PatchSelection => ({
+    pane,
+    x: Math.min(startX, endX),
+    y: Math.min(startY, endY),
+    width: Math.abs(endX - startX),
+    height: Math.abs(endY - startY),
+  });
+
+  const createPatch = async (crop: PatchSelection) => {
+    const source = images[crop.pane];
+    if (!source.src || crop.width < 3 || crop.height < 3) return;
+    const sourceImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = source.src;
+    });
+    const frameWidth = 1600;
+    const frameHeight = 450;
+    const scale = Math.max(frameWidth / source.width, frameHeight / source.height);
+    const renderedWidth = source.width * scale;
+    const renderedHeight = source.height * scale;
+    const renderedX = -(renderedWidth - frameWidth) * (source.positionX / 100);
+    const renderedY = -(renderedHeight - frameHeight) * (source.positionY / 100);
+    const cropX = (crop.x / 100) * frameWidth;
+    const cropY = (crop.y / 100) * frameHeight;
+    const cropWidth = (crop.width / 100) * frameWidth;
+    const cropHeight = (crop.height / 100) * frameHeight;
+    const sourceX = Math.max(0, Math.min(source.width, (cropX - renderedX) / scale));
+    const sourceY = Math.max(0, Math.min(source.height, (cropY - renderedY) / scale));
+    const sourceWidth = Math.max(1, Math.min(source.width - sourceX, cropWidth / scale));
+    const sourceHeight = Math.max(1, Math.min(source.height - sourceY, cropHeight / scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(sourceWidth));
+    canvas.height = Math.max(1, Math.round(sourceHeight));
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(sourceImage, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+    const targetPane: CollagePane = crop.pane === 'upper' ? 'lower' : 'upper';
+    const patch: CollagePatch = { ...crop, id: Date.now(), src: canvas.toDataURL('image/png'), targetPane, centerX: 50, centerY: 50 };
+    setPatches((current) => [...current, patch]);
+    setSelectedPane(targetPane);
+    setSelectedPatchId(patch.id);
+  };
+
   const onPointerDown = (event: PointerEvent<HTMLDivElement>, pane: CollagePane) => {
     const image = images[pane];
     setSelectedPane(pane);
     if (!image.src || event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
+    if (selectionMode && pane === selectedPane) {
+      const point = pointInPane(event);
+      selectionStartRef.current = { pane, pointerId: event.pointerId, ...point };
+      setSelection({ pane, ...point, width: 0, height: 0 });
+      return;
+    }
     dragRef.current = { pane, pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, positionX: image.positionX, positionY: image.positionY };
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>, pane: CollagePane) => {
+    const selectionStart = selectionStartRef.current;
+    if (selectionStart && selectionStart.pane === pane && selectionStart.pointerId === event.pointerId) {
+      const point = pointInPane(event);
+      setSelection(selectionFromPoints(pane, selectionStart.x, selectionStart.y, point.x, point.y));
+      return;
+    }
     const drag = dragRef.current;
     if (!drag || drag.pane !== pane || drag.pointerId !== event.pointerId) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -369,7 +479,51 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
   };
 
   const endPointerDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const selectionStart = selectionStartRef.current;
+    if (selectionStart?.pointerId === event.pointerId) {
+      const point = pointInPane(event);
+      const finished = selectionFromPoints(selectionStart.pane, selectionStart.x, selectionStart.y, point.x, point.y);
+      selectionStartRef.current = null;
+      setSelection(null);
+      setSelectionMode(false);
+      void createPatch(finished);
+      return;
+    }
     if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+  };
+
+  const onPatchPointerDown = (event: PointerEvent<HTMLButtonElement>, patch: CollagePatch) => {
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelectedPatchId(patch.id);
+    setSelectedPane(patch.targetPane);
+    patchDragRef.current = { id: patch.id, pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, centerX: patch.centerX, centerY: patch.centerY };
+  };
+
+  const onPatchPointerMove = (event: PointerEvent<HTMLButtonElement>, pane: CollagePane) => {
+    const drag = patchDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    const rect = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!rect) return;
+    const deltaX = ((event.clientX - drag.clientX) / rect.width) * 100;
+    const deltaY = ((event.clientY - drag.clientY) / rect.height) * 100;
+    setPatches((current) => current.map((patch) => {
+      if (patch.id !== drag.id) return patch;
+      const halfWidth = patch.width / 2;
+      const halfHeight = patch.height / 2;
+      return {
+        ...patch,
+        centerX: Math.max(halfWidth, Math.min(100 - halfWidth, drag.centerX + deltaX)),
+        centerY: Math.max(halfHeight, Math.min(100 - halfHeight, drag.centerY + deltaY)),
+        targetPane: pane,
+      };
+    }));
+  };
+
+  const endPatchDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (patchDragRef.current?.pointerId === event.pointerId) patchDragRef.current = null;
   };
 
   const exportCollage = async () => {
@@ -389,6 +543,14 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
       const [upperImage, lowerImage] = await Promise.all([loadImage(images.upper.src), loadImage(images.lower.src)]);
       drawCoverImage(context, upperImage, 0, 1600, 450, images.upper.positionX, images.upper.positionY);
       drawCoverImage(context, lowerImage, 450, 1600, 450, images.lower.positionX, images.lower.positionY);
+      const patchImages = await Promise.all(patches.map(async (patch) => ({ patch, image: await loadImage(patch.src) })));
+      patchImages.forEach(({ patch, image }) => {
+        const width = (patch.width / 100) * 1600;
+        const height = (patch.height / 100) * 450;
+        const x = (patch.centerX / 100) * 1600 - width / 2;
+        const y = (patch.targetPane === 'upper' ? 0 : 450) + (patch.centerY / 100) * 450 - height / 2;
+        context.drawImage(image, x, y, width, height);
+      });
       context.fillStyle = '#f4dd63';
       context.fillRect(0, 448, 1600, 4);
       const link = document.createElement('a');
@@ -405,9 +567,9 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
     const label = pane === 'upper' ? t.collageUpper : t.collageLower;
     return (
       <div
-        className={`collage-pane ${selectedPane === pane ? 'selected' : ''} ${image.src ? 'filled' : ''}`}
-        onClick={() => setSelectedPane(pane)}
-        onDoubleClick={() => openUpload(pane)}
+        className={`collage-pane ${selectedPane === pane ? 'selected' : ''} ${image.src ? 'filled' : ''} ${selectionMode && selectedPane === pane ? 'selecting-patch' : ''}`}
+        onClick={() => { setSelectedPane(pane); setSelectedPatchId(null); }}
+        onDoubleClick={() => { if (!selectionMode) openUpload(pane); }}
         onPointerDown={(event) => onPointerDown(event, pane)}
         onPointerMove={(event) => onPointerMove(event, pane)}
         onPointerUp={endPointerDrag}
@@ -423,8 +585,23 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
             <span>＋</span><strong>{label}</strong><small>{t.collageEmpty}</small>
           </button>
         )}
+        {patches.filter((patch) => patch.targetPane === pane).map((patch) => (
+          <button
+            key={patch.id}
+            className={`collage-patch ${selectedPatchId === patch.id ? 'selected' : ''}`}
+            type="button"
+            style={{ left: `${patch.centerX}%`, top: `${patch.centerY}%`, width: `${patch.width}%`, height: `${patch.height}%` }}
+            onClick={(event) => { event.stopPropagation(); setSelectedPatchId(patch.id); setSelectedPane(pane); }}
+            onPointerDown={(event) => onPatchPointerDown(event, patch)}
+            onPointerMove={(event) => onPatchPointerMove(event, pane)}
+            onPointerUp={endPatchDrag}
+            onPointerCancel={endPatchDrag}
+            aria-label={t.collagePatch}
+          ><img src={patch.src} alt="" draggable={false} /></button>
+        ))}
+        {selection?.pane === pane && <span className="collage-selection" style={{ left: `${selection.x}%`, top: `${selection.y}%`, width: `${selection.width}%`, height: `${selection.height}%` }} />}
         <span className="collage-pane-label">{label}</span>
-        {image.src && <span className="collage-drag-hint">↔ {t.collageDrag}</span>}
+        {image.src && <span className="collage-drag-hint">{selectionMode && selectedPane === pane ? `＋ ${t.collagePatch}` : `↔ ${t.collageDrag}`}</span>}
       </div>
     );
   };
@@ -445,9 +622,27 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
       </section>
       <aside className="inspector collage-inspector">
         <div className="inspector-header"><span>{t.collageModule}</span><span className="status-pill">● {t.live}</span></div>
-        <section className="inspector-section"><div className="section-title"><span>01</span><strong>{t.images}</strong><span className="section-count">{readyCount}/2</span></div><p className="section-copy">{t.collageHelp}</p>{(['upper', 'lower'] as CollagePane[]).map((pane) => { const image = images[pane]; const label = pane === 'upper' ? t.collageUpper : t.collageLower; return <button key={pane} className={`collage-upload-card ${selectedPane === pane ? 'selected' : ''}`} type="button" onClick={() => openUpload(pane)}><span>{pane === 'upper' ? '↑' : '↓'}</span><span><strong>{label}</strong><small>{image.src ? image.name : t.collageUpload}</small></span><b>{image.src ? '↻' : '＋'}</b></button>; })}<input ref={inputRef} className="sr-only" type="file" accept="image/*" onChange={onFileChange} /></section>
+        <section className="inspector-section">
+          <div className="section-title"><span>01</span><strong>{t.images}</strong><span className="section-count">{readyCount}/2</span></div>
+          <p className="section-copy">{t.collageHelp}</p>
+          <button className="collage-batch-upload" type="button" onClick={() => openUpload('upper', 'both')}><span>↥</span><strong>{t.collageUploadBoth}</strong><small>{t.collageUploadBothHint}</small></button>
+          {(['upper', 'lower'] as CollagePane[]).map((pane) => {
+            const image = images[pane];
+            const label = pane === 'upper' ? t.collageUpper : t.collageLower;
+            return <button key={pane} className={`collage-upload-card ${selectedPane === pane ? 'selected' : ''}`} type="button" onClick={() => openUpload(pane)}><span>{pane === 'upper' ? '↑' : '↓'}</span><span><strong>{label}</strong><small>{image.src ? image.name : t.collageUpload}</small></span><b>{image.src ? '↻' : '＋'}</b></button>;
+          })}
+          <button className="collage-swap" type="button" disabled={readyCount < 2} onClick={swapImages}>⇅ {t.collageSwap}</button>
+          <input ref={inputRef} className="sr-only" type="file" accept="image/*" multiple onChange={onFileChange} />
+        </section>
         <section className="inspector-section"><div className="section-title"><span>02</span><strong>{t.collageSelected}</strong></div><div className="selected-tile"><span>{t.collageSelected}</span><b>{selectedPane === 'upper' ? t.collageUpper : t.collageLower}</b></div><p className="section-copy collage-position-copy">{images[selectedPane].src ? t.collageDrag : t.collageWaiting}</p><button className="add-text" type="button" disabled={!images[selectedPane].src} onClick={() => updatePosition(selectedPane, 50, 50)}>↺ {t.collageResetPosition}</button></section>
-        <section className="inspector-section details-section"><div className="section-title"><span>03</span><strong>{t.export}</strong></div><div className="detail-row"><span>{t.canvas}</span><b>16:9</b></div><div className="detail-row"><span>{t.quality}</span><b>1600 × 900 PNG</b></div><p className="section-copy collage-export-copy">{t.collageExportHint}</p><button className="collage-export-wide" type="button" disabled={readyCount < 2} onClick={() => void exportCollage()}>{t.collageExport}<span>↗</span></button></section>
+        <section className="inspector-section">
+          <div className="section-title"><span>03</span><strong>{t.collagePatch}</strong><span className="section-count">{patches.length}</span></div>
+          <p className="section-copy">{selectionMode ? t.collagePatchActive : t.collagePatchHelp}</p>
+          <button className={`collage-patch-action ${selectionMode ? 'active' : ''}`} type="button" disabled={!images[selectedPane].src} onClick={() => { setSelectionMode((current) => !current); setSelection(null); setSelectedPatchId(null); }}>{selectionMode ? `× ${t.collagePatchCancel}` : `▱ ${t.collagePatchStart}`}</button>
+          {selectionMode && <p className="collage-mode-note">{t.collagePatchActive}</p>}
+          <button className="collage-patch-delete" type="button" disabled={selectedPatchId === null} onClick={() => { setPatches((current) => current.filter((patch) => patch.id !== selectedPatchId)); setSelectedPatchId(null); }}>− {t.collagePatchDelete}</button>
+        </section>
+        <section className="inspector-section details-section"><div className="section-title"><span>04</span><strong>{t.export}</strong></div><div className="detail-row"><span>{t.canvas}</span><b>16:9</b></div><div className="detail-row"><span>{t.quality}</span><b>1600 × 900 PNG</b></div><p className="section-copy collage-export-copy">{t.collageExportHint}</p><button className="collage-export-wide" type="button" disabled={readyCount < 2} onClick={() => void exportCollage()}>{t.collageExport}<span>↗</span></button></section>
         <div className="inspector-footer">{t.made} <span>✦</span></div>
       </aside>
     </>
