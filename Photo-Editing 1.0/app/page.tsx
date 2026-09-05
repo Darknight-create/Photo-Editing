@@ -24,6 +24,75 @@ const copy = {
   },
 } as const;
 
+const collageCopy = {
+  zh: {
+    collageModule: '切片拼贴',
+    collageKicker: '构图 02 · 16:9',
+    collageHeadline: '把两个瞬间，\n接成一段。',
+    collageHelp: '上传两张图片，拖动画面即可独立调整上下取景。',
+    collageUpper: '上画幅',
+    collageLower: '下画幅',
+    collageUpload: '上传图片',
+    collageReplace: '替换图片',
+    collageDrag: '按住并拖动图片调整取景',
+    collageSelected: '当前画幅',
+    collageResetPosition: '恢复居中',
+    collageExport: '导出拼贴',
+    collageExportHint: '两张图片上传后即可导出 1600 × 900 PNG',
+    collageEmpty: '添加图片',
+    collageReady: '已就绪',
+    collageWaiting: '等待图片',
+  },
+  en: {
+    collageModule: 'slice collage',
+    collageKicker: 'composition 02 · 16:9',
+    collageHeadline: 'Join two moments\ninto one frame.',
+    collageHelp: 'Upload two images, then drag each one to set its own crop.',
+    collageUpper: 'upper frame',
+    collageLower: 'lower frame',
+    collageUpload: 'upload image',
+    collageReplace: 'replace image',
+    collageDrag: 'hold and drag to adjust the crop',
+    collageSelected: 'selected frame',
+    collageResetPosition: 'recenter',
+    collageExport: 'export collage',
+    collageExportHint: 'Upload both images to export a 1600 × 900 PNG',
+    collageEmpty: 'add image',
+    collageReady: 'ready',
+    collageWaiting: 'waiting',
+  },
+} as const;
+
+type AppCopy = (typeof copy)[Language] & (typeof collageCopy)[Language];
+type CollagePane = 'upper' | 'lower';
+type CollageImage = Upload & { width: number; height: number; positionX: number; positionY: number };
+
+const emptyCollageImage = (): CollageImage => ({ src: '', name: '', width: 0, height: 0, positionX: 50, positionY: 50 });
+
+function readCollageFile(file: File): Promise<CollageImage> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = String(reader.result);
+      const image = new Image();
+      image.onload = () => resolve({ src, name: file.name, width: image.naturalWidth, height: image.naturalHeight, positionX: 50, positionY: 50 });
+      image.src = src;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function drawCoverImage(context: CanvasRenderingContext2D, image: HTMLImageElement, targetY: number, targetWidth: number, targetHeight: number, positionX: number, positionY: number) {
+  const scale = Math.max(targetWidth / image.naturalWidth, targetHeight / image.naturalHeight);
+  const sourceWidth = targetWidth / scale;
+  const sourceHeight = targetHeight / scale;
+  const maxSourceX = Math.max(0, image.naturalWidth - sourceWidth);
+  const maxSourceY = Math.max(0, image.naturalHeight - sourceHeight);
+  const sourceX = maxSourceX * (positionX / 100);
+  const sourceY = maxSourceY * (positionY / 100);
+  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, targetY, targetWidth, targetHeight);
+}
+
 function readFile(file: File): Promise<Upload> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -102,7 +171,7 @@ function formatMemory(bytes: number): string {
   return megabytes < 1 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${megabytes.toFixed(1)} MB`;
 }
 
-function GalleryModule({ t, language, setLanguage }: { t: (typeof copy)[Language]; language: Language; setLanguage: (language: Language) => void }) {
+function GalleryModule({ t, language, setLanguage }: { t: AppCopy; language: Language; setLanguage: (language: Language) => void }) {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [title, setTitle] = useState<string>(t.galleryTitle);
@@ -252,10 +321,143 @@ function GalleryModule({ t, language, setLanguage }: { t: (typeof copy)[Language
   );
 }
 
+function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Language; setLanguage: (language: Language) => void }) {
+  const [images, setImages] = useState<Record<CollagePane, CollageImage>>({ upper: emptyCollageImage(), lower: emptyCollageImage() });
+  const [selectedPane, setSelectedPane] = useState<CollagePane>('upper');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetRef = useRef<CollagePane>('upper');
+  const dragRef = useRef<{ pane: CollagePane; pointerId: number; clientX: number; clientY: number; positionX: number; positionY: number } | null>(null);
+  const readyCount = Number(Boolean(images.upper.src)) + Number(Boolean(images.lower.src));
+
+  const openUpload = (pane: CollagePane) => {
+    uploadTargetRef.current = pane;
+    setSelectedPane(pane);
+    inputRef.current?.click();
+  };
+
+  const onFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    const image = await readCollageFile(file);
+    const pane = uploadTargetRef.current;
+    setImages((current) => ({ ...current, [pane]: image }));
+  };
+
+  const updatePosition = (pane: CollagePane, positionX: number, positionY: number) => {
+    setImages((current) => ({
+      ...current,
+      [pane]: { ...current[pane], positionX: Math.max(0, Math.min(100, positionX)), positionY: Math.max(0, Math.min(100, positionY)) },
+    }));
+  };
+
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>, pane: CollagePane) => {
+    const image = images[pane];
+    setSelectedPane(pane);
+    if (!image.src || event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pane, pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, positionX: image.positionX, positionY: image.positionY };
+  };
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>, pane: CollagePane) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pane !== pane || drag.pointerId !== event.pointerId) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const deltaX = ((event.clientX - drag.clientX) / rect.width) * 100;
+    const deltaY = ((event.clientY - drag.clientY) / rect.height) * 100;
+    updatePosition(pane, drag.positionX - deltaX, drag.positionY - deltaY);
+  };
+
+  const endPointerDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+  };
+
+  const exportCollage = async () => {
+    if (!images.upper.src || !images.lower.src) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600;
+    canvas.height = 900;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    const loadImage = (source: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = source;
+    });
+    try {
+      const [upperImage, lowerImage] = await Promise.all([loadImage(images.upper.src), loadImage(images.lower.src)]);
+      drawCoverImage(context, upperImage, 0, 1600, 450, images.upper.positionX, images.upper.positionY);
+      drawCoverImage(context, lowerImage, 450, 1600, 450, images.lower.positionX, images.lower.positionY);
+      context.fillStyle = '#f4dd63';
+      context.fillRect(0, 448, 1600, 4);
+      const link = document.createElement('a');
+      link.download = 'slice-collage.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch {
+      return;
+    }
+  };
+
+  const renderPane = (pane: CollagePane) => {
+    const image = images[pane];
+    const label = pane === 'upper' ? t.collageUpper : t.collageLower;
+    return (
+      <div
+        className={`collage-pane ${selectedPane === pane ? 'selected' : ''} ${image.src ? 'filled' : ''}`}
+        onClick={() => setSelectedPane(pane)}
+        onDoubleClick={() => openUpload(pane)}
+        onPointerDown={(event) => onPointerDown(event, pane)}
+        onPointerMove={(event) => onPointerMove(event, pane)}
+        onPointerUp={endPointerDrag}
+        onPointerCancel={endPointerDrag}
+        role="button"
+        tabIndex={0}
+        aria-label={`${label} · ${image.src ? t.collageDrag : t.collageEmpty}`}
+      >
+        {image.src ? (
+          <img src={image.src} alt={image.name} draggable={false} style={{ objectPosition: `${image.positionX}% ${image.positionY}%` }} />
+        ) : (
+          <button className="collage-empty" type="button" onClick={(event) => { event.stopPropagation(); openUpload(pane); }}>
+            <span>＋</span><strong>{label}</strong><small>{t.collageEmpty}</small>
+          </button>
+        )}
+        <span className="collage-pane-label">{label}</span>
+        {image.src && <span className="collage-drag-hint">↔ {t.collageDrag}</span>}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <section className="workspace collage-workspace">
+        <header className="topbar"><div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.collageModule}</strong></div><div className="top-actions"><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="export-button" type="button" disabled={readyCount < 2} onClick={() => void exportCollage()}><span>{t.collageExport}</span><span className="arrow">↗</span></button></div></header>
+        <div className="collage-area">
+          <div className="canvas-heading collage-heading"><div><p className="eyebrow">{t.collageKicker}</p><h1>{t.collageHeadline.split('\n')[0]}<br /><em>{t.collageHeadline.split('\n')[1]}</em></h1></div><p className="canvas-note">{t.collageHelp}</p></div>
+          <div className="collage-frame" aria-label={t.collageModule}>
+            {renderPane('upper')}
+            <div className="collage-seam"><span /></div>
+            {renderPane('lower')}
+          </div>
+          <div className="collage-meta"><span>16:9 · 1600 × 900</span><span>{readyCount}/2 {readyCount === 2 ? t.collageReady : t.collageWaiting}</span></div>
+        </div>
+      </section>
+      <aside className="inspector collage-inspector">
+        <div className="inspector-header"><span>{t.collageModule}</span><span className="status-pill">● {t.live}</span></div>
+        <section className="inspector-section"><div className="section-title"><span>01</span><strong>{t.images}</strong><span className="section-count">{readyCount}/2</span></div><p className="section-copy">{t.collageHelp}</p>{(['upper', 'lower'] as CollagePane[]).map((pane) => { const image = images[pane]; const label = pane === 'upper' ? t.collageUpper : t.collageLower; return <button key={pane} className={`collage-upload-card ${selectedPane === pane ? 'selected' : ''}`} type="button" onClick={() => openUpload(pane)}><span>{pane === 'upper' ? '↑' : '↓'}</span><span><strong>{label}</strong><small>{image.src ? image.name : t.collageUpload}</small></span><b>{image.src ? '↻' : '＋'}</b></button>; })}<input ref={inputRef} className="sr-only" type="file" accept="image/*" onChange={onFileChange} /></section>
+        <section className="inspector-section"><div className="section-title"><span>02</span><strong>{t.collageSelected}</strong></div><div className="selected-tile"><span>{t.collageSelected}</span><b>{selectedPane === 'upper' ? t.collageUpper : t.collageLower}</b></div><p className="section-copy collage-position-copy">{images[selectedPane].src ? t.collageDrag : t.collageWaiting}</p><button className="add-text" type="button" disabled={!images[selectedPane].src} onClick={() => updatePosition(selectedPane, 50, 50)}>↺ {t.collageResetPosition}</button></section>
+        <section className="inspector-section details-section"><div className="section-title"><span>03</span><strong>{t.export}</strong></div><div className="detail-row"><span>{t.canvas}</span><b>16:9</b></div><div className="detail-row"><span>{t.quality}</span><b>1600 × 900 PNG</b></div><p className="section-copy collage-export-copy">{t.collageExportHint}</p><button className="collage-export-wide" type="button" disabled={readyCount < 2} onClick={() => void exportCollage()}>{t.collageExport}<span>↗</span></button></section>
+        <div className="inspector-footer">{t.made} <span>✦</span></div>
+      </aside>
+    </>
+  );
+}
+
 export default function Home() {
   const [language, setLanguage] = useState<Language>('zh');
-  const [activeModule, setActiveModule] = useState<'grid' | 'gallery'>('grid');
-  const t = copy[language];
+  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage'>('grid');
+  const t = { ...copy[language], ...collageCopy[language] } as AppCopy;
   const [slots, setSlots] = useState<Slot[]>(emptySlots);
   const [selectedSlot, setSelectedSlot] = useState(4);
   const [zoom, setZoom] = useState(82);
@@ -416,6 +618,9 @@ export default function Home() {
           <button className={`tool-button ${activeModule === 'gallery' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('gallery')}>
             <span className="tool-icon">◌</span><span>{t.galleryModule}</span>
           </button>
+          <button className={`tool-button ${activeModule === 'collage' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('collage')}>
+            <span className="tool-icon">▤</span><span>{t.collageModule}</span>
+          </button>
         </nav>
         <div className="sidebar-footer"><span className="tiny-dot" /><span>{t.local}</span></div>
       </aside>
@@ -450,7 +655,7 @@ export default function Home() {
         <section className="inspector-section details-section"><div className="section-title"><span>03</span><strong>{t.details}</strong></div><div className="detail-row"><span>{t.canvas}</span><b>{t.square}</b></div><div className="detail-row"><span>{t.spacing}</span><b>{t.none}</b></div><div className="detail-row"><span>{t.quality}</span><b>{t.high}</b></div></section>
         <div className="inspector-footer">{t.made} <span>✦</span></div>
       </aside>
-      </> : <GalleryModule t={t} language={language} setLanguage={setLanguage} />}
+      </> : activeModule === 'gallery' ? <GalleryModule t={t} language={language} setLanguage={setLanguage} /> : <CollageModule t={t} language={language} setLanguage={setLanguage} />}
     </main>
   );
 }
