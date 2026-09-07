@@ -45,11 +45,11 @@ const collageCopy = {
     collageEmpty: '添加图片',
     collageReady: '已就绪',
     collageWaiting: '等待图片',
-    collagePatch: '矩形取景贴片',
-    collagePatchHelp: '选择来源画幅，拖出矩形；松手后贴片会出现在另一画幅。',
-    collagePatchStart: '开始框选',
+    collagePatch: '正方形取景贴片',
+    collagePatchHelp: '选择来源画幅，拖动即可生成固定 1:1 正方形贴片。',
+    collagePatchStart: '开始正方形框选',
     collagePatchCancel: '取消框选',
-    collagePatchActive: '请在当前画幅拖出矩形',
+    collagePatchActive: '请在当前画幅拖动，选框会自动保持 1:1',
     collagePatchDelete: '删除选中贴片',
     collagePatchEmpty: '还没有贴片',
   },
@@ -73,11 +73,11 @@ const collageCopy = {
     collageEmpty: 'add image',
     collageReady: 'ready',
     collageWaiting: 'waiting',
-    collagePatch: 'crop patch',
-    collagePatchHelp: 'Choose a source frame and draw a rectangle. The patch appears on the other frame.',
-    collagePatchStart: 'draw a patch',
+    collagePatch: 'square crop patch',
+    collagePatchHelp: 'Choose a source frame and drag to create a locked 1:1 square patch.',
+    collagePatchStart: 'draw a square patch',
     collagePatchCancel: 'cancel selection',
-    collagePatchActive: 'Drag a rectangle on the selected frame',
+    collagePatchActive: 'Drag on the selected frame; the crop stays 1:1',
     collagePatchDelete: 'delete selected patch',
     collagePatchEmpty: 'no patches yet',
   },
@@ -404,13 +404,26 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
     };
   };
 
-  const selectionFromPoints = (pane: CollagePane, startX: number, startY: number, endX: number, endY: number): PatchSelection => ({
-    pane,
-    x: Math.min(startX, endX),
-    y: Math.min(startY, endY),
-    width: Math.abs(endX - startX),
-    height: Math.abs(endY - startY),
-  });
+  const selectionFromPoints = (pane: CollagePane, startX: number, startY: number, endX: number, endY: number): PatchSelection => {
+    const frameWidth = 1600;
+    const frameHeight = 450;
+    const directionX = endX >= startX ? 1 : -1;
+    const directionY = endY >= startY ? 1 : -1;
+    const draggedWidth = (Math.abs(endX - startX) / 100) * frameWidth;
+    const draggedHeight = (Math.abs(endY - startY) / 100) * frameHeight;
+    const availableWidth = (directionX > 0 ? 100 - startX : startX) / 100 * frameWidth;
+    const availableHeight = (directionY > 0 ? 100 - startY : startY) / 100 * frameHeight;
+    const squareSize = Math.min(Math.max(draggedWidth, draggedHeight), availableWidth, availableHeight);
+    const squareEndX = startX + directionX * (squareSize / frameWidth) * 100;
+    const squareEndY = startY + directionY * (squareSize / frameHeight) * 100;
+    return {
+      pane,
+      x: Math.min(startX, squareEndX),
+      y: Math.min(startY, squareEndY),
+      width: (squareSize / frameWidth) * 100,
+      height: (squareSize / frameHeight) * 100,
+    };
+  };
 
   const createPatch = async (crop: PatchSelection) => {
     const source = images[crop.pane];
