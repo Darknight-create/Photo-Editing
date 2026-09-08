@@ -326,7 +326,7 @@ function GalleryModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
       <section className="workspace gallery-workspace">
         <header className="topbar"><div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.galleryModule}</strong></div><div className="top-actions"><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="export-button" type="button" onClick={() => inputRef.current?.click()}><span>{t.galleryUpload}</span><span className="arrow">↗</span></button></div></header>
         <div className="gallery-area">
-          <div className="gallery-heading"><div><p className="eyebrow">{t.galleryKicker}</p><h1>{t.galleryHeadline}</h1></div><p className="canvas-note">{t.galleryHelp}</p></div>
+          <div className="gallery-heading"><div><p className="eyebrow">PHOTO STUDIO / 02</p><h1>{t.galleryModule}</h1></div><p className="canvas-note">{t.galleryHelp}</p></div>
           <div ref={frameRef} className={`gallery-frame ${isPortrait ? 'portrait' : 'landscape'}`} style={{ '--gallery-ratio': ratio, width: frameWidth ? `${frameWidth}px` : undefined } as React.CSSProperties}>
             <div className="gallery-frame-header"><input className="gallery-title" value={title} onChange={(event) => setTitle(event.target.value)} aria-label={t.galleryTitle} /><div className="gallery-dots">{images.length ? images.map((image, index) => <button key={`${image.name}-${index}`} className={index === activeIndex ? 'active' : ''} style={{ '--dot-color': image.dotColor } as React.CSSProperties} type="button" aria-label={`${t.galleryTitle} ${index + 1}`} onClick={() => setActiveIndex(index)} />) : Array.from({ length: 8 }, (_, index) => <span key={index} />)}</div></div>
             <div className="gallery-stage" style={{ '--gallery-ratio': ratio } as React.CSSProperties}>
@@ -624,7 +624,7 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
       <section className="workspace collage-workspace">
         <header className="topbar"><div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.collageModule}</strong></div><div className="top-actions"><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="export-button" type="button" disabled={readyCount < 2} onClick={() => void exportCollage()}><span>{t.collageExport}</span><span className="arrow">↗</span></button></div></header>
         <div className="collage-area">
-          <div className="canvas-heading collage-heading"><div><p className="eyebrow">{t.collageKicker}</p><h1>{t.collageHeadline.split('\n')[0]}<br /><em>{t.collageHeadline.split('\n')[1]}</em></h1></div><p className="canvas-note">{t.collageHelp}</p></div>
+          <div className="canvas-heading collage-heading"><div><p className="eyebrow">PHOTO STUDIO / 03 · 16:9</p><h1>{t.collageModule}</h1></div><p className="canvas-note">{t.collageHelp}</p></div>
           <div className="collage-frame" aria-label={t.collageModule}>
             {renderPane('upper')}
             <div className="collage-seam"><span /></div>
@@ -840,7 +840,7 @@ export default function Home() {
           <div className="top-actions"><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="quiet-button" type="button" onClick={() => setSlots(emptySlots())}>{t.reset}</button><button className="export-button" type="button" onClick={() => void exportGrid()}><span>{t.export}</span><span className="arrow">↗</span></button></div>
         </header>
         <div className="canvas-area">
-          <div className="canvas-heading"><div><p className="eyebrow">{t.composition} <span>·</span> 3 × 3</p><h1>{t.headline.split('\n')[0]}<br /><em>{t.headline.split('\n')[1]}</em></h1></div><p className="canvas-note">{t.diary}</p></div>
+          <div className="canvas-heading"><div><p className="eyebrow">PHOTO STUDIO / 01 · 3 × 3</p><h1>{t.nineGrid}</h1></div><p className="canvas-note">{language === 'zh' ? '单击选中 · 双击上传 · 长按拖动排序' : 'Click to select · Double-click to upload · Hold to reorder'}</p></div>
           <div className="canvas-wrap" style={{ '--zoom': `${zoom / 100}` } as React.CSSProperties}>
             <div className="grid-canvas" aria-label={t.ariaCanvas}>
               {slots.map((slot, index) => (
