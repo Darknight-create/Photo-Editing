@@ -818,7 +818,6 @@ export default function Home() {
     <main className="editor-shell">
       <aside className="sidebar">
         <div className="brand-mark">n/9</div>
-        <div className="project-name">{t.project}<br /><span>{t.editor}</span></div>
         <div className="sidebar-rule" />
         <nav className="tool-list" aria-label={t.inspector}>
           <button className={`tool-button ${activeModule === 'grid' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('grid')}>
@@ -837,7 +836,7 @@ export default function Home() {
       {activeModule === 'grid' ? <>
       <section className="workspace">
         <header className="topbar">
-          <div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.project}</strong></div>
+          <div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.nineGrid}</strong></div>
           <div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="quiet-button" type="button" onClick={() => setSlots(emptySlots())}>{t.reset}</button><button className="export-button" type="button" onClick={() => void exportGrid()}><span>{t.export}</span><span className="arrow">↗</span></button></div>
         </header>
         <div className="canvas-area">
