@@ -1,4 +1,8 @@
 /* Interface-only theme. Artwork colors and export geometry stay in globals.css. */
+.theme-switch { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--ui-border); border-radius: 7px; background: #fff; }
+.theme-switch button { display: grid; place-items: center; width: 32px; height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ui-muted); }
+.theme-switch button:hover { background: var(--ui-soft); color: var(--ui-accent); }
+.theme-switch button.chosen { background: #eef1f6; color: var(--ui-text); }
 :root {
   --ui-text: #20242c;
   --ui-muted: #626b78;
@@ -126,3 +130,35 @@ button:disabled { cursor: not-allowed; }
 @media (max-width: 760px) { .editor-shell { display: block; } .sidebar { padding: 10px 12px; gap: 10px; min-height: 64px; } .project-name { display: none; } .tool-list { flex: 1; overflow-x: auto; } .tool-button { justify-content: center; flex: 1; padding: 9px 10px; font-size: 13px; } .tool-icon { display: none; } .topbar { padding: 12px 18px; height: auto; min-height: 66px; } .crumbs span, .crumbs b { display: none; } .canvas-area, .gallery-area, .collage-area { padding: 22px 18px; } .inspector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; border-left: 0; border-top: 1px solid var(--ui-border); padding: 24px; } .inspector-header, .inspector-footer { grid-column: 1 / -1; } .canvas-note { display: block; max-width: none; } .canvas-controls { gap: 12px; } .gallery-frame-footer { gap: 8px; } }
 @media (max-width: 480px) { .brand-mark { width: 32px; height: 32px; flex-basis: 32px; font-size: 15px; } .sidebar { gap: 8px; } .tool-button { padding-inline: 8px; font-size: 12px; } .tool-list { gap: 2px; } .top-actions { gap: 8px; } .export-button { padding-inline: 12px; gap: 8px; font-size: 13px; } .quiet-button { display: none; } .canvas-heading h1, .gallery-heading h1 { font-size: 24px; } .canvas-note { font-size: 12px; } .inspector { display: block; padding: 24px 18px; } .empty-cell small { font-size: 11px; } .plus-glyph { width: 32px; height: 32px; font-size: 24px; } .collage-pane-label { font-size: 11px; } .gallery-footer-actions { flex-wrap: wrap; gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+
+html[data-theme='dark'] { --ui-text: #e6eaf2; --ui-muted: #a5afbf; --ui-border: #343c49; --ui-accent: #8aafff; --ui-soft: #25344e; color-scheme: dark; }
+html[data-theme='light'] { color-scheme: light; }
+html[data-theme='dark'] body, html[data-theme='dark'] .editor-shell { background: #14181f; color: var(--ui-text); }
+html[data-theme='dark'] :is(.sidebar, .inspector, .theme-switch, .language-switch) { background: #1d232d; }
+html[data-theme='dark'] :is(.topbar, .tool-list) { background: #191e27; }
+html[data-theme='dark'] :is(.tool-button.active, .theme-switch button.chosen, .language-switch button.chosen, .selected-tile) { background: #303a4b; color: var(--ui-text); }
+html[data-theme='dark'] .tool-button:hover { background: #2b3443; color: var(--ui-text); }
+html[data-theme='dark'] .brand-mark { background: #e6eaf2; color: #1d232d; }
+html[data-theme='dark'] :is(.text-input, .add-text, .collage-swap, .collage-patch-delete, .zoom-control button) { background: #202733; border-color: #455064; color: var(--ui-text); }
+html[data-theme='dark'] :is(.add-text, .collage-swap):hover:not(:disabled) { background: #303a4b; }
+html[data-theme='dark'] :is(.upload-card, .collage-batch-upload, .collage-patch-action, .gallery-export) { border-color: #49628a; background: var(--ui-soft); }
+html[data-theme='dark'] .upload-card:hover { background: #304566; }
+html[data-theme='dark'] :is(.export-button, .collage-export-wide, .collage-patch-action.active) { background: #416fdb; color: #fff; }
+html[data-theme='dark'] .export-button:hover:not(:disabled) { background: #507de7; }
+html[data-theme='dark'] :is(.upload-card-icon, .collage-batch-upload > span) { background: #416fdb; color: #fff; }
+html[data-theme='dark'] .collage-upload-card { color: var(--ui-text); }
+html[data-theme='dark'] .collage-upload-card > span:first-child { background: #303a4b; }
+html[data-theme='dark'] .quality-buttons button { border-color: #455064; }
+html[data-theme='dark'] .quality-buttons button.selected { border-color: var(--ui-accent); }
+html[data-theme='dark'] .field-label output, html[data-theme='dark'] .export-memory b { color: var(--ui-text); }
+html[data-theme='dark'] .collage-patch-delete { color: #f0a6ad; }
+/* The photo and white artwork canvas are deliberately independent of UI appearance. */
+html[data-theme='dark'] :is(.grid-canvas, .gallery-frame, .collage-frame) { color-scheme: light; }
+html[data-theme='dark'] :is(.empty-cell, .collage-empty) { color: #626b78; }
+html[data-theme='dark'] .plus-glyph { background: #edf3ff; color: #285dcc; }
+html[data-theme='dark'] .gallery-frame-footer { background: #1d232d; }
+@media (max-width: 560px) {
+  .topbar { flex-wrap: wrap; gap: 12px; }
+  .top-actions { flex-wrap: wrap; }
+  .theme-switch button { width: 30px; }
+}

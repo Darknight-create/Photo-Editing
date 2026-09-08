@@ -1,6 +1,7 @@
 'use client';
 
 import { ChangeEvent, DragEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import ThemeSwitch from './theme-switch';
 
 type Language = 'zh' | 'en';
 type Slot = {
@@ -324,7 +325,7 @@ function GalleryModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
   return (
     <>
       <section className="workspace gallery-workspace">
-        <header className="topbar"><div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.galleryModule}</strong></div><div className="top-actions"><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="export-button" type="button" onClick={() => inputRef.current?.click()}><span>{t.galleryUpload}</span><span className="arrow">↗</span></button></div></header>
+        <header className="topbar"><div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.galleryModule}</strong></div><div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="export-button" type="button" onClick={() => inputRef.current?.click()}><span>{t.galleryUpload}</span><span className="arrow">↗</span></button></div></header>
         <div className="gallery-area">
           <div className="gallery-heading"><div><p className="eyebrow">PHOTO STUDIO / 02</p><h1>{t.galleryModule}</h1></div><p className="canvas-note">{t.galleryHelp}</p></div>
           <div ref={frameRef} className={`gallery-frame ${isPortrait ? 'portrait' : 'landscape'}`} style={{ '--gallery-ratio': ratio, width: frameWidth ? `${frameWidth}px` : undefined } as React.CSSProperties}>
@@ -622,7 +623,7 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
   return (
     <>
       <section className="workspace collage-workspace">
-        <header className="topbar"><div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.collageModule}</strong></div><div className="top-actions"><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="export-button" type="button" disabled={readyCount < 2} onClick={() => void exportCollage()}><span>{t.collageExport}</span><span className="arrow">↗</span></button></div></header>
+        <header className="topbar"><div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.collageModule}</strong></div><div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="export-button" type="button" disabled={readyCount < 2} onClick={() => void exportCollage()}><span>{t.collageExport}</span><span className="arrow">↗</span></button></div></header>
         <div className="collage-area">
           <div className="canvas-heading collage-heading"><div><p className="eyebrow">PHOTO STUDIO / 03 · 16:9</p><h1>{t.collageModule}</h1></div><p className="canvas-note">{t.collageHelp}</p></div>
           <div className="collage-frame" aria-label={t.collageModule}>
@@ -837,7 +838,7 @@ export default function Home() {
       <section className="workspace">
         <header className="topbar">
           <div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.project}</strong></div>
-          <div className="top-actions"><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="quiet-button" type="button" onClick={() => setSlots(emptySlots())}>{t.reset}</button><button className="export-button" type="button" onClick={() => void exportGrid()}><span>{t.export}</span><span className="arrow">↗</span></button></div>
+          <div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="quiet-button" type="button" onClick={() => setSlots(emptySlots())}>{t.reset}</button><button className="export-button" type="button" onClick={() => void exportGrid()}><span>{t.export}</span><span className="arrow">↗</span></button></div>
         </header>
         <div className="canvas-area">
           <div className="canvas-heading"><div><p className="eyebrow">PHOTO STUDIO / 01 · 3 × 3</p><h1>{t.nineGrid}</h1></div><p className="canvas-note">{language === 'zh' ? '单击选中 · 双击上传 · 长按拖动排序' : 'Click to select · Double-click to upload · Hold to reorder'}</p></div>
