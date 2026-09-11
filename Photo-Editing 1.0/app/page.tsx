@@ -2,6 +2,7 @@
 
 import { ChangeEvent, DragEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import ThemeSwitch from './theme-switch';
+import TicketModule from './ticket-module';
 
 type Language = 'zh' | 'en';
 type Slot = {
@@ -665,7 +666,7 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>('zh');
-  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage'>('grid');
+  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage' | 'ticket'>('grid');
   const t = { ...copy[language], ...collageCopy[language] } as AppCopy;
   const [slots, setSlots] = useState<Slot[]>(emptySlots);
   const [selectedSlot, setSelectedSlot] = useState(4);
@@ -829,6 +830,9 @@ export default function Home() {
           <button className={`tool-button ${activeModule === 'collage' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('collage')}>
             <span className="tool-icon">▤</span><span>{t.collageModule}</span>
           </button>
+          <button className={`tool-button ${activeModule === 'ticket' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('ticket')}>
+            <span className="tool-icon">▱</span><span>{language === 'zh' ? '电子票根' : 'Photo ticket'}</span>
+          </button>
         </nav>
         <div className="sidebar-footer"><span className="tiny-dot" /><span>{t.local}</span></div>
       </aside>
@@ -863,7 +867,7 @@ export default function Home() {
         <section className="inspector-section details-section"><div className="section-title"><span>03</span><strong>{t.details}</strong></div><div className="detail-row"><span>{t.canvas}</span><b>{t.square}</b></div><div className="detail-row"><span>{t.spacing}</span><b>{t.none}</b></div><div className="detail-row"><span>{t.quality}</span><b>{t.high}</b></div></section>
         <div className="inspector-footer">{t.made} <span>✦</span></div>
       </aside>
-      </> : activeModule === 'gallery' ? <GalleryModule t={t} language={language} setLanguage={setLanguage} /> : <CollageModule t={t} language={language} setLanguage={setLanguage} />}
+      </> : activeModule === 'gallery' ? <GalleryModule t={t} language={language} setLanguage={setLanguage} /> : activeModule === 'ticket' ? <TicketModule language={language} setLanguage={setLanguage} /> : <CollageModule t={t} language={language} setLanguage={setLanguage} />}
     </main>
   );
 }
