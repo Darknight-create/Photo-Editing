@@ -3,6 +3,7 @@
 import { ChangeEvent, DragEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import ThemeSwitch from './theme-switch';
 import TicketModule from './ticket-module';
+import PolaroidModule from './polaroid-module';
 
 type Language = 'zh' | 'en';
 type Slot = {
@@ -700,7 +701,7 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>('zh');
-  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage' | 'ticket'>('grid');
+  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage' | 'ticket' | 'polaroid'>('grid');
   const t = { ...copy[language], ...collageCopy[language] } as AppCopy;
   const [slots, setSlots] = useState<Slot[]>(emptySlots);
   const [selectedSlot, setSelectedSlot] = useState(4);
@@ -867,6 +868,9 @@ export default function Home() {
           <button className={`tool-button ${activeModule === 'ticket' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('ticket')}>
             <span className="tool-icon">▱</span><span>{language === 'zh' ? '电子票根' : 'Photo ticket'}</span>
           </button>
+          <button className={`tool-button ${activeModule === 'polaroid' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('polaroid')}>
+            <span className="tool-icon">▣</span><span>{language === 'zh' ? '此刻留白' : 'Quiet moment'}</span>
+          </button>
         </nav>
         <div className="sidebar-footer"><span className="tiny-dot" /><span>{t.local}</span></div>
       </aside>
@@ -905,6 +909,7 @@ export default function Home() {
       <div className={`module-view ${activeModule === 'gallery' ? 'active' : ''}`}><GalleryModule t={t} language={language} setLanguage={setLanguage} active={activeModule === 'gallery'} /></div>
       <div className={`module-view ${activeModule === 'collage' ? 'active' : ''}`}><CollageModule t={t} language={language} setLanguage={setLanguage} /></div>
       <div className={`module-view ${activeModule === 'ticket' ? 'active' : ''}`}><TicketModule language={language} setLanguage={setLanguage} /></div>
+      <div className={`module-view ${activeModule === 'polaroid' ? 'active' : ''}`}><PolaroidModule language={language} setLanguage={setLanguage} /></div>
     </main>
   );
 }
