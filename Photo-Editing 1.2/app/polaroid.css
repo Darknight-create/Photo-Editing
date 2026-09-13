@@ -2,10 +2,19 @@
 .polaroid-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 24px; }
 .polaroid-heading h1 { margin: 0; color: var(--ui-text); font-size: 27px; line-height: 1.2; font-weight: 650; letter-spacing: -.03em; text-transform: capitalize; }
 .polaroid-heading > p { max-width: 360px; margin: 0; color: var(--ui-muted); font-size: 14px; line-height: 1.65; }
+.polaroid-preview-switch { display: inline-grid; grid-template-columns: repeat(3, minmax(72px, 1fr)); gap: 3px; margin-bottom: 12px; padding: 3px; border: 1px solid var(--ui-border); border-radius: 9px; background: #fff; }
+.polaroid-preview-switch button { min-height: 36px; padding: 7px 14px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-muted); font-size: 13px; }
+.polaroid-preview-switch button.selected { background: var(--ui-text); color: #fff; box-shadow: 0 2px 7px #20242c1c; }
 .polaroid-stage { --moment-color: #75879a; display: grid; place-items: center; min-height: min(72vh, 790px); padding: 52px; overflow: hidden; border: 1px solid var(--ui-border); border-radius: 12px; background: color-mix(in srgb, var(--moment-color) 28%, #f5f6f8); box-shadow: inset 0 0 100px #ffffff38; }
+.polaroid-stage.mode-back { background: color-mix(in srgb, var(--moment-color) 12%, #ecebe7); }
+.polaroid-stage.mode-share { background: #e9ebef; }
 .polaroid-preview { position: relative; width: min(100%, 500px); filter: drop-shadow(0 24px 25px #20242c2b); transform: rotate(-.35deg); }
 .polaroid-preview canvas { display: block; width: 100%; height: auto; background: #fbfaf5; cursor: grab; touch-action: none; user-select: none; }
 .polaroid-preview canvas:active { cursor: grabbing; }
+.reframe-guides { position: absolute; inset: 6% 7.5% 26%; pointer-events: none; }
+.reframe-guides i { position: absolute; display: block; background: #ffffffb8; box-shadow: 0 0 0 1px #20242c1c; }
+.reframe-guides i:first-child { top: 0; bottom: 0; left: 50%; width: 1px; }
+.reframe-guides i:last-child { top: 50%; right: 0; left: 0; height: 1px; }
 .polaroid-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; width: min(100%, 500px); aspect-ratio: 4 / 5; padding: 40px; border: 1px dashed #7d8794; background: #ffffffd9; color: var(--ui-text); box-shadow: 0 18px 38px #20242c14; }
 .polaroid-empty:hover { border-color: var(--ui-accent); box-shadow: 0 20px 45px #20242c22; transform: translateY(-2px); }
 .polaroid-empty > span { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--ui-accent); color: white; font-size: 32px; font-weight: 300; }
@@ -26,14 +35,15 @@
 .polaroid-style-grid button { min-width: 0; padding: 9px 7px 10px; border: 1px solid var(--ui-border); border-radius: 8px; background: #fff; color: var(--ui-muted); text-align: left; }
 .polaroid-style-grid button:hover, .polaroid-style-grid button.selected { border-color: var(--ui-accent); background: var(--ui-soft); color: var(--ui-text); }
 .polaroid-style-grid button.selected { box-shadow: inset 0 0 0 1px var(--ui-accent); }
-.paper-sample { display: block; width: 100%; height: 28px; margin-bottom: 8px; border-radius: 3px; background: #fbfaf5; box-shadow: inset 0 0 0 1px #20242c12; }
-.paper-sample.memory { background: #f2ead8; }
-.paper-sample.night { background: #deddd7; }
+.paper-sample { display: block; width: 100%; height: 42px; margin-bottom: 8px; border-radius: 3px; background-color: #fbfaf5; background-position: center; background-size: cover; box-shadow: inset 0 0 0 1px #20242c12; }
+.paper-sample.memory { background-color: #f2ead8; filter: saturate(.78) sepia(.14); }
+.paper-sample.night { background-color: #deddd7; filter: saturate(.58) brightness(.9); }
 .polaroid-style-grid strong, .polaroid-style-grid small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .polaroid-style-grid strong { font-size: 13px; font-weight: 600; }
 .polaroid-style-grid small { margin-top: 3px; color: var(--ui-muted); font-size: 11px; }
 .polaroid-textarea { display: block; width: 100%; min-height: 82px; resize: vertical; padding: 11px 12px; border: 1px solid #cdd3de; border-radius: 7px; background: #fff; color: var(--ui-text); font: 14px/1.55 inherit; }
 .polaroid-textarea:focus, .polaroid-fields input:focus { outline: 3px solid #285dcc16; border-color: var(--ui-accent); }
+.character-count { float: right; color: var(--ui-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .phrase-label { margin-top: 14px; color: var(--ui-muted); font-size: 12px; }
 .phrase-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .phrase-list button { max-width: 100%; padding: 6px 9px; overflow: hidden; border: 1px solid var(--ui-border); border-radius: 999px; background: #fff; color: var(--ui-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -41,12 +51,20 @@
 .polaroid-fields { display: grid; grid-template-columns: 1fr; gap: 11px; margin-top: 16px; }
 .polaroid-fields label > span { display: block; margin-bottom: 7px; color: var(--ui-muted); font-size: 12px; }
 .polaroid-fields input { display: block; width: 100%; min-height: 40px; padding: 9px 10px; border: 1px solid #cdd3de; border-radius: 7px; background: #fff; color: var(--ui-text); font-size: 13px; }
+.visibility-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 13px; color: var(--ui-muted); font-size: 13px; }
+.back-note { min-height: 116px; }
+.text-preview-link { display: block; margin: 10px 0 0 auto; padding: 4px 0; border: 0; background: transparent; color: var(--ui-accent); font-size: 12px; font-weight: 600; }
 .polaroid-fit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 12px; padding: 4px; border-radius: 9px; background: #eef1f6; }
 .polaroid-fit button { min-height: 38px; padding: 7px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-muted); font-size: 12px; }
 .polaroid-fit button.selected { background: #fff; color: var(--ui-accent); box-shadow: 0 1px 5px #20242c18; font-weight: 600; }
 .polaroid-zoom { display: grid; grid-template-columns: 1fr auto; align-items: center; }
 .polaroid-zoom output { color: var(--ui-text); font-variant-numeric: tabular-nums; }
 .polaroid-zoom input { grid-column: 1 / -1; width: 100%; margin-top: 10px; accent-color: var(--ui-accent); }
+.history-actions { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+.history-actions button { padding: 4px 7px; border: 1px solid var(--ui-border); border-radius: 5px; background: #fff; color: var(--ui-muted); font-size: 11px; }
+.history-actions button:hover:not(:disabled) { border-color: var(--ui-accent); color: var(--ui-accent); }
+.history-actions button:disabled { opacity: .35; }
+.history-actions i { display: none; }
 .polaroid-export { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 43px; margin-top: 8px; padding: 10px 13px; border: 1px solid #adc2ee; border-radius: 8px; background: var(--ui-soft); color: var(--ui-accent); font-size: 13px; font-weight: 600; }
 .polaroid-export.primary { margin-top: 16px; border-color: var(--ui-accent); background: var(--ui-accent); color: #fff; }
 .polaroid-export:hover:not(:disabled) { box-shadow: 0 4px 12px #285dcc1f; transform: translateY(-1px); }
@@ -56,9 +74,11 @@
 .polaroid-export-section .export-memory b { color: var(--ui-text); font-weight: 600; }
 
 html[data-theme='dark'] .polaroid-stage { background: color-mix(in srgb, var(--moment-color) 22%, #1a2029); box-shadow: inset 0 0 100px #00000024; }
-html[data-theme='dark'] :is(.polaroid-style-grid button, .polaroid-textarea, .polaroid-fields input, .phrase-list button) { background: #202733; border-color: #455064; color: var(--ui-text); }
+html[data-theme='dark'] :is(.polaroid-style-grid button, .polaroid-textarea, .polaroid-fields input, .phrase-list button, .polaroid-preview-switch, .history-actions button) { background: #202733; border-color: #455064; color: var(--ui-text); }
 html[data-theme='dark'] :is(.polaroid-fit) { background: #181e27; }
 html[data-theme='dark'] .polaroid-fit button.selected { background: #303a4b; color: var(--ui-accent); }
+html[data-theme='dark'] .polaroid-preview-switch button.selected { background: #e6eaf2; color: #1d232d; }
+html[data-theme='dark'] .polaroid-stage.mode-share { background: #171c24; }
 html[data-theme='dark'] .polaroid-preview { color-scheme: light; }
 @media (max-width: 1000px) { .polaroid-area { padding: 24px; } .polaroid-stage { padding: 36px; } }
 @media (max-width: 760px) { .polaroid-area { padding: 22px 18px; } .polaroid-heading { align-items: start; flex-direction: column; gap: 10px; } .polaroid-heading > p { max-width: none; } .polaroid-stage { min-height: auto; padding: 28px; } .polaroid-inspector { overflow: visible; } }

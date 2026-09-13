@@ -10,6 +10,12 @@ export type PolaroidArt = {
   positionY: number;
   zoom: number;
   fit: PolaroidFit;
+  showMessage: boolean;
+  showMeta: boolean;
+  showMark: boolean;
+  backMessage: string;
+  recipient: string;
+  shareRotation: number;
 };
 
 export const POLAROID_WIDTH = 1200;
@@ -70,6 +76,19 @@ function wrappedLines(ctx: CanvasRenderingContext2D, value: string, maxWidth: nu
   return lines;
 }
 
+function fittedMessage(ctx: CanvasRenderingContext2D, value: string, maxWidth: number, maxLines: number) {
+  let fontSize = 58;
+  let lines: string[] = [];
+  while (fontSize >= 38) {
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif`;
+    lines = wrappedLines(ctx, value, maxWidth, maxLines);
+    const visible = lines.join('').replace(/…$/, '').length;
+    if (visible >= [...value.trim()].filter(character => character !== '\n').length || fontSize === 38) break;
+    fontSize -= 2;
+  }
+  return { fontSize, lines };
+}
+
 function drawPaperTexture(ctx: CanvasRenderingContext2D, style: PolaroidStyle) {
   if (style === 'first') return;
   ctx.save();
@@ -96,17 +115,57 @@ export function drawPolaroid(ctx: CanvasRenderingContext2D, art: PolaroidArt, wi
   ctx.fillStyle = token.ink;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
-  ctx.font = `${art.style === 'memory' ? 'italic 500' : '600'} 58px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif`;
-  const lines = wrappedLines(ctx, art.message || '把今天，轻轻收好。', 920, 2);
-  lines.forEach((line, index) => ctx.fillText(line, 112, 1178 + index * 78));
+  if (art.showMessage && art.message.trim()) {
+    const { fontSize, lines } = fittedMessage(ctx, art.message, 920, 3);
+    ctx.font = `${art.style === 'memory' ? 'italic 500' : '600'} ${fontSize}px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif`;
+    const lineHeight = fontSize * 1.28;
+    lines.forEach((line, index) => ctx.fillText(line, 112, 1168 + index * lineHeight));
+  }
 
   ctx.font = '500 27px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
   ctx.fillStyle = art.style === 'first' ? '#70736d' : token.ink;
   ctx.globalAlpha = .72;
-  const meta = [art.date, art.place].filter(Boolean).join('  ·  ');
-  ctx.fillText(meta || '此刻', 114, 1382);
+  if (art.showMeta) {
+    const meta = [art.date, art.place].filter(Boolean).join('  ·  ');
+    if (meta) ctx.fillText(meta, 114, 1402);
+  }
+  if (art.showMark) {
+    ctx.textAlign = 'right';
+    ctx.fillText(art.style === 'memory' ? 'MEMORY / 01' : art.style === 'night' ? 'AFTERGLOW' : 'NOW', 1084, 1402);
+  }
+  ctx.restore();
+}
+
+export function drawPolaroidBack(ctx: CanvasRenderingContext2D, art: PolaroidArt, width = POLAROID_WIDTH, height = POLAROID_HEIGHT) {
+  const token = styleTokens[art.style];
+  ctx.save();
+  ctx.scale(width / POLAROID_WIDTH, height / POLAROID_HEIGHT);
+  ctx.clearRect(0, 0, POLAROID_WIDTH, POLAROID_HEIGHT);
+  ctx.fillStyle = token.paper;
+  ctx.fillRect(0, 0, POLAROID_WIDTH, POLAROID_HEIGHT);
+  drawPaperTexture(ctx, art.style);
+  ctx.fillStyle = token.ink;
+  ctx.textBaseline = 'top';
+  ctx.font = '500 26px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.globalAlpha = .58;
+  ctx.fillText(art.recipient.trim() ? `TO / ${art.recipient.trim()}` : 'TO /', 112, 118);
   ctx.textAlign = 'right';
-  ctx.fillText(art.style === 'memory' ? 'MEMORY / 01' : art.style === 'night' ? 'AFTERGLOW' : 'NOW', 1084, 1382);
+  ctx.fillText(art.date || '', 1088, 118);
+  ctx.globalAlpha = .22;
+  ctx.fillRect(112, 184, 976, 2);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+  const value = art.backMessage.trim();
+  if (value) {
+    ctx.font = '500 49px Georgia, "Songti SC", "STSong", serif';
+    const lines = wrappedLines(ctx, value, 930, 10);
+    lines.forEach((line, index) => ctx.fillText(line, 128, 260 + index * 82));
+  }
+  ctx.globalAlpha = .52;
+  ctx.font = '500 23px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillText('A NOTE FROM THIS MOMENT', 112, 1378);
+  ctx.textAlign = 'right';
+  ctx.fillText(art.place || '', 1088, 1378);
   ctx.restore();
 }
 
@@ -125,19 +184,32 @@ export function drawPolaroidShare(ctx: CanvasRenderingContext2D, art: PolaroidAr
   ctx.fillRect(0, 0, width, height);
 
   const paper = document.createElement('canvas');
-  paper.width = POLAROID_WIDTH;
-  paper.height = POLAROID_HEIGHT;
-  const paperContext = paper.getContext('2d');
-  if (!paperContext) return;
-  drawPolaroid(paperContext, art);
   const targetWidth = width * .69;
   const targetHeight = targetWidth * POLAROID_HEIGHT / POLAROID_WIDTH;
+  paper.width = Math.max(POLAROID_WIDTH, Math.round(targetWidth));
+  paper.height = Math.max(POLAROID_HEIGHT, Math.round(targetHeight));
+  const paperContext = paper.getContext('2d');
+  if (!paperContext) return;
+  drawPolaroid(paperContext, art, paper.width, paper.height);
   ctx.save();
   ctx.translate(width / 2, height / 2 + height * .018);
-  ctx.rotate(-2.1 * Math.PI / 180);
+  ctx.rotate(art.shareRotation * Math.PI / 180);
   ctx.shadowColor = '#19202636';
   ctx.shadowBlur = width * .035;
   ctx.shadowOffsetY = width * .025;
   ctx.drawImage(paper, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight);
+  ctx.restore();
+}
+
+export function drawPolaroidPair(ctx: CanvasRenderingContext2D, art: PolaroidArt, width: number, height: number) {
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#eceae4';
+  ctx.fillRect(0, 0, width, height);
+  const gap = Math.round(width * .035);
+  const paperHeight = Math.floor((height - gap) / 2);
+  drawPolaroid(ctx, art, width, paperHeight);
+  ctx.save();
+  ctx.translate(0, paperHeight + gap);
+  drawPolaroidBack(ctx, art, width, paperHeight);
   ctx.restore();
 }

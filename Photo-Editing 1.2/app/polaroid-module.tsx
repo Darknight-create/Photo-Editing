@@ -3,196 +3,102 @@
 import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import ThemeSwitch from './theme-switch';
 import { centerColor, photoMetadata } from './ticket-art';
-import { drawPolaroid, drawPolaroidShare, PHOTO_FRAME, POLAROID_HEIGHT, POLAROID_WIDTH, PolaroidArt, PolaroidFit, PolaroidStyle } from './polaroid-art';
+import { drawPolaroid, drawPolaroidBack, drawPolaroidPair, drawPolaroidShare, PHOTO_FRAME, POLAROID_HEIGHT, POLAROID_WIDTH, PolaroidArt, PolaroidFit, PolaroidStyle } from './polaroid-art';
 
 type Language = 'zh' | 'en';
 type ExportQuality = 'hd' | 'uhd';
 type ExportFormat = 'png' | 'jpeg';
+type PreviewMode = 'front' | 'back' | 'share';
+type ExportKind = PreviewMode | 'pair';
+type MomentSettings = {
+  style: PolaroidStyle; message: string; date: string; place: string; positionX: number; positionY: number;
+  zoom: number; fit: PolaroidFit; showMessage: boolean; showMeta: boolean; showMark: boolean;
+  backMessage: string; recipient: string; shareRotation: number;
+};
+type DraftRecord = MomentSettings & { src: string; fileName: string };
 
 const words = {
   zh: {
     module: '此刻留白', eyebrow: 'PHOTO STUDIO / 05 · POLAROID', headline: '把一个瞬间，留成可以触摸的记忆。', note: '上传照片后，拖动画面调整取景，在下方写下这一刻。',
-    project: '项目', inspector: '编辑', live: '实时', upload: '上传照片', replace: '替换照片', uploadHint: 'JPG、PNG · 一次一张', empty: '点击放入一张想留住的照片', image: '照片', style: '相纸风格', first: '初见', firstHint: '清透白边', memory: '旧时光', memoryHint: '奶油旧影', night: '晚安片刻', nightHint: '低饱和灰调',
-    text: '写下此刻', message: '留言', placeholder: '比如：把今天，轻轻收好。', date: '日期', place: '地点', placePlaceholder: '可选，比如：上海', phrases: '一句开场', framing: '取景', zoom: '缩放', crop: '铺满画面', contain: '完整显示', recenter: '恢复居中', dragHint: '按住照片区域拖动取景',
-    export: '导出', exportPaper: '导出相纸', exportShare: '导出分享画布', png: 'PNG', jpg: 'JPG', hd: '高清', uhd: '超清', expected: '预计处理内存', lastSize: '上次导出', developing: '正在显影…', revealNow: '立即显影', reset: '重置', noImage: '请先上传照片', exportFailed: '导出失败，请换一张照片后重试。', language: '语言', switchLabel: '切换语言', made: '把情绪留在相纸里',
+    project: '项目', inspector: '编辑', live: '实时', draft: '草稿已自动保存', upload: '上传照片', replace: '替换照片', uploadHint: 'JPG、PNG · 一次一张', empty: '点击放入一张想留住的照片', image: '照片', style: '相纸风格', first: '初见', firstHint: '清透白边', memory: '旧时光', memoryHint: '奶油旧影', night: '晚安片刻', nightHint: '低饱和灰调',
+    front: '正面', back: '背面', share: '分享', text: '写下此刻', message: '留言', placeholder: '比如：把今天，轻轻收好。', showMessage: '显示留言', date: '日期', place: '地点', placePlaceholder: '可选，比如：上海', showMeta: '显示日期与地点', showMark: '显示英文标记', phrases: '一句开场', backTitle: '写在背面', recipient: '写给', recipientPlaceholder: '自己、某个人或未来', backMessage: '背面的话', backPlaceholder: '这一刻为什么想留下来？',
+    framing: '取景', zoom: '缩放', crop: '铺满画面', contain: '完整显示', recenter: '恢复居中', dragHint: '按住照片区域拖动取景', rotate: '分享相纸角度', undo: '撤销', redo: '重做',
+    export: '导出', exportCurrent: '导出当前画面', exportPair: '导出正反面', exportShare: '导出分享画布', png: 'PNG', jpg: 'JPG', hd: '高清', uhd: '超清', dimensions: '导出尺寸', estimatedFile: '预计文件', expected: '处理内存', lastSize: '上次导出', developing: '正在显影…', revealNow: '立即显影', reset: '重置', noImage: '请先上传照片', exportFailed: '导出失败，请换一张照片后重试。', language: '语言', switchLabel: '切换语言', made: '把情绪留在相纸里',
   },
   en: {
     module: 'quiet moment', eyebrow: 'PHOTO STUDIO / 05 · POLAROID', headline: 'Turn one moment into something you can hold.', note: 'Upload a photo, drag to compose it, then leave a note beneath the frame.',
-    project: 'projects', inspector: 'edit', live: 'live', upload: 'upload photo', replace: 'replace photo', uploadHint: 'JPG, PNG · one at a time', empty: 'Click to add a moment worth keeping', image: 'photo', style: 'paper style', first: 'first light', firstHint: 'clean white', memory: 'old memory', memoryHint: 'warm faded paper', night: 'afterglow', nightHint: 'quiet muted tone',
-    text: 'write this moment', message: 'note', placeholder: 'For example: keep today, gently.', date: 'date', place: 'place', placePlaceholder: 'Optional, e.g. Shanghai', phrases: 'start with a line', framing: 'framing', zoom: 'zoom', crop: 'fill frame', contain: 'show all', recenter: 'recenter', dragHint: 'Hold and drag inside the photo to reframe',
-    export: 'export', exportPaper: 'export polaroid', exportShare: 'export share canvas', png: 'PNG', jpg: 'JPG', hd: 'high', uhd: 'ultra', expected: 'estimated working memory', lastSize: 'last export', developing: 'developing…', revealNow: 'reveal now', reset: 'reset', noImage: 'Upload a photo first.', exportFailed: 'Export failed. Please try another photo.', language: 'language', switchLabel: 'Switch language', made: 'keep the feeling on paper',
+    project: 'projects', inspector: 'edit', live: 'live', draft: 'draft saved automatically', upload: 'upload photo', replace: 'replace photo', uploadHint: 'JPG, PNG · one at a time', empty: 'Click to add a moment worth keeping', image: 'photo', style: 'paper style', first: 'first light', firstHint: 'clean white', memory: 'old memory', memoryHint: 'warm faded paper', night: 'afterglow', nightHint: 'quiet muted tone',
+    front: 'front', back: 'back', share: 'share', text: 'write this moment', message: 'note', placeholder: 'For example: keep today, gently.', showMessage: 'show note', date: 'date', place: 'place', placePlaceholder: 'Optional, e.g. Shanghai', showMeta: 'show date and place', showMark: 'show English mark', phrases: 'start with a line', backTitle: 'write on the back', recipient: 'to', recipientPlaceholder: 'yourself, someone, or the future', backMessage: 'back note', backPlaceholder: 'Why do you want to keep this moment?',
+    framing: 'framing', zoom: 'zoom', crop: 'fill frame', contain: 'show all', recenter: 'recenter', dragHint: 'Hold and drag inside the photo to reframe', rotate: 'share card angle', undo: 'undo', redo: 'redo',
+    export: 'export', exportCurrent: 'export current view', exportPair: 'export front + back', exportShare: 'export share canvas', png: 'PNG', jpg: 'JPG', hd: 'high', uhd: 'ultra', dimensions: 'export size', estimatedFile: 'estimated file', expected: 'working memory', lastSize: 'last export', developing: 'developing…', revealNow: 'reveal now', reset: 'reset', noImage: 'Upload a photo first.', exportFailed: 'Export failed. Please try another photo.', language: 'language', switchLabel: 'Switch language', made: 'keep the feeling on paper',
   },
 } as const;
 
-const phraseOptions = {
-  zh: ['今天的风，刚刚好。', '这一刻，值得留住。', '把今天，轻轻收好。', '我在这里，也很快乐。'],
-  en: ['The light felt just right.', 'A moment worth keeping.', 'Keep today, gently.', 'I was here, and I was happy.'],
-};
-
+const phraseOptions = { zh: ['今天的风，刚刚好。', '这一刻，值得留住。', '把今天，轻轻收好。', '我在这里，也很快乐。'], en: ['The light felt just right.', 'A moment worth keeping.', 'Keep today, gently.', 'I was here, and I was happy.'] };
+const defaultSettings = (): MomentSettings => ({ style: 'first', message: '', date: '', place: '', positionX: 50, positionY: 50, zoom: 1, fit: 'cover', showMessage: true, showMeta: true, showMark: true, backMessage: '', recipient: '', shareRotation: -2 });
+const draftKey = 'quiet-moment-v2';
 function clamp(value: number) { return Math.min(100, Math.max(0, value)); }
+function localDate() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }
 function formatBytes(bytes: number) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
+function openDraftDb() { return new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('photo-editing-drafts', 1); request.onupgradeneeded = () => request.result.createObjectStore('drafts'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
+async function saveDraft(record: DraftRecord) { const db = await openDraftDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('drafts', 'readwrite'); tx.objectStore('drafts').put(record, draftKey); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); }); db.close(); }
+async function readDraft() { const db = await openDraftDb(); const value = await new Promise<DraftRecord | undefined>((resolve, reject) => { const request = db.transaction('drafts').objectStore('drafts').get(draftKey); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); db.close(); return value; }
+async function clearDraft() { const db = await openDraftDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('drafts', 'readwrite'); tx.objectStore('drafts').delete(draftKey); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); }); db.close(); }
 
 export default function PolaroidModule({ language, setLanguage }: { language: Language; setLanguage: (language: Language) => void }) {
   const t = words[language];
-  const inputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null), canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ x: number; y: number; positionX: number; positionY: number } | null>(null);
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
-  const [fileName, setFileName] = useState('');
-  const [style, setStyle] = useState<PolaroidStyle>('first');
-  const [message, setMessage] = useState('');
-  const [date, setDate] = useState('');
-  const [place, setPlace] = useState('');
-  const [positionX, setPositionX] = useState(50);
-  const [positionY, setPositionY] = useState(50);
-  const [zoom, setZoom] = useState(1);
-  const [fit, setFit] = useState<PolaroidFit>('cover');
-  const [background, setBackground] = useState('#75879a');
-  const [developing, setDeveloping] = useState(false);
-  const [quality, setQuality] = useState<ExportQuality>('hd');
-  const [format, setFormat] = useState<ExportFormat>('png');
-  const [lastSize, setLastSize] = useState<number | null>(null);
-  const [error, setError] = useState('');
+  const historyRef = useRef<MomentSettings[]>([]), futureRef = useRef<MomentSettings[]>([]), previousRef = useRef<MomentSettings | null>(null), restoringRef = useRef(false);
+  const [image, setImage] = useState<HTMLImageElement | null>(null), [fileName, setFileName] = useState(''), [background, setBackground] = useState('#75879a');
+  const [settings, setSettings] = useState<MomentSettings>(defaultSettings), [previewMode, setPreviewMode] = useState<PreviewMode>('front'), [developing, setDeveloping] = useState(false);
+  const [quality, setQuality] = useState<ExportQuality>('hd'), [format, setFormat] = useState<ExportFormat>('png'), [lastSize, setLastSize] = useState<number | null>(null), [error, setError] = useState('');
+  const [draftReady, setDraftReady] = useState(false), [historyTick, setHistoryTick] = useState(0), [isReframing, setIsReframing] = useState(false);
+  const art = useMemo<PolaroidArt | null>(() => image ? ({ image, ...settings }) : null, [image, settings]);
+  const update = (patch: Partial<MomentSettings>) => setSettings(current => ({ ...current, ...patch }));
+  const exportWidth = quality === 'hd' ? 1200 : 2000, exportHeight = Math.round(exportWidth * POLAROID_HEIGHT / POLAROID_WIDTH);
+  const selectedWidth = previewMode === 'share' ? (quality === 'hd' ? 1600 : 2400) : exportWidth, selectedHeight = previewMode === 'share' ? Math.round(selectedWidth * 1.25) : exportHeight;
+  const estimatedMemory = selectedWidth * selectedHeight * 4, estimatedFile = selectedWidth * selectedHeight * (format === 'png' ? .72 : .2);
 
-  const art = useMemo<PolaroidArt | null>(() => image ? ({ image, style, message, date, place, positionX, positionY, zoom, fit }) : null, [image, style, message, date, place, positionX, positionY, zoom, fit]);
-  const exportWidth = quality === 'hd' ? 1200 : 2000;
-  const exportHeight = Math.round(exportWidth * POLAROID_HEIGHT / POLAROID_WIDTH);
-  const estimatedMemory = exportWidth * exportHeight * 4;
-
-  useEffect(() => {
-    if (!developing) return;
-    const timer = window.setTimeout(() => setDeveloping(false), 2000);
-    return () => window.clearTimeout(timer);
-  }, [developing]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const context = canvas.getContext('2d');
-    if (!context) return;
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    if (art) drawPolaroid(context, art, canvas.width, canvas.height);
-  }, [art]);
+  useEffect(() => { void readDraft().then(record => { if (!record) { setDraftReady(true); return; } const { src, fileName: savedName, ...savedSettings } = record; setSettings({ ...defaultSettings(), ...savedSettings }); if (!src) { setDraftReady(true); return; } const savedImage = new Image(); savedImage.onload = () => { setImage(savedImage); setFileName(savedName); setBackground(centerColor(savedImage)); setDraftReady(true); }; savedImage.onerror = () => setDraftReady(true); savedImage.src = src; }).catch(() => setDraftReady(true)); }, []);
+  useEffect(() => { if (!draftReady) return; const timer = window.setTimeout(() => { void saveDraft({ ...settings, src: image?.src || '', fileName }).catch(() => undefined); }, 450); return () => window.clearTimeout(timer); }, [draftReady, settings, image, fileName]);
+  useEffect(() => { if (!draftReady) return; if (restoringRef.current) { restoringRef.current = false; previousRef.current = settings; return; } if (previousRef.current && JSON.stringify(previousRef.current) !== JSON.stringify(settings)) { historyRef.current = [...historyRef.current.slice(-29), previousRef.current]; futureRef.current = []; setHistoryTick(value => value + 1); } previousRef.current = settings; }, [draftReady, settings]);
+  useEffect(() => { if (!developing) return; const timer = window.setTimeout(() => setDeveloping(false), 2000); return () => window.clearTimeout(timer); }, [developing]);
+  useEffect(() => { const canvas = canvasRef.current; if (!canvas || !art) return; const context = canvas.getContext('2d'); if (!context) return; if (previewMode === 'front') drawPolaroid(context, art, canvas.width, canvas.height); else if (previewMode === 'back') drawPolaroidBack(context, art, canvas.width, canvas.height); else drawPolaroidShare(context, art, background, canvas.width, canvas.height); }, [art, previewMode, background]);
 
   const upload = async (file?: File) => {
     if (!file || !file.type.startsWith('image/')) return;
     setError('');
-    const [src, buffer] = await Promise.all([
-      new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); }),
-      file.arrayBuffer(),
-    ]);
-    const nextImage = new Image();
-    nextImage.onload = () => {
-      const metadata = photoMetadata(buffer);
-      setImage(nextImage);
-      setFileName(file.name);
-      setBackground(centerColor(nextImage));
-      setDate(metadata.date || new Date().toISOString().slice(0, 10));
-      setPositionX(50); setPositionY(50); setZoom(1); setFit('cover');
-      setDeveloping(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    };
-    nextImage.onerror = () => setError(t.exportFailed);
-    nextImage.src = src;
-  };
-
-  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    void upload(event.target.files?.[0]);
-    event.target.value = '';
-  };
-
-  const onPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (!image || fit === 'contain') return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width * POLAROID_WIDTH;
-    const y = (event.clientY - rect.top) / rect.height * POLAROID_HEIGHT;
-    if (x < PHOTO_FRAME.x || x > PHOTO_FRAME.x + PHOTO_FRAME.size || y < PHOTO_FRAME.y || y > PHOTO_FRAME.y + PHOTO_FRAME.size) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { x: event.clientX, y: event.clientY, positionX, positionY };
-  };
-
-  const onPointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    setPositionX(clamp(drag.positionX - (event.clientX - drag.x) / rect.width * 125));
-    setPositionY(clamp(drag.positionY - (event.clientY - drag.y) / rect.height * 156));
-  };
-
-  const stopDragging = (event: PointerEvent<HTMLCanvasElement>) => {
-    dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-  };
-
-  const reset = () => {
-    setImage(null); setFileName(''); setMessage(''); setDate(''); setPlace(''); setStyle('first'); setPositionX(50); setPositionY(50); setZoom(1); setFit('cover'); setDeveloping(false); setLastSize(null); setError('');
-  };
-
-  const saveCanvas = (canvas: HTMLCanvasElement, name: string) => new Promise<void>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) { reject(new Error('blob')); return; }
-      setLastSize(blob.size);
-      const link = document.createElement('a');
-      link.download = `${name}.${format === 'jpeg' ? 'jpg' : 'png'}`;
-      link.href = URL.createObjectURL(blob);
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-      resolve();
-    }, format === 'jpeg' ? 'image/jpeg' : 'image/png', .92);
-  });
-
-  const exportArt = async (kind: 'paper' | 'share') => {
-    if (!art) { setError(t.noImage); return; }
-    setError('');
     try {
-      const canvas = document.createElement('canvas');
-      if (kind === 'paper') {
-        canvas.width = exportWidth; canvas.height = exportHeight;
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('canvas');
-        drawPolaroid(context, art, canvas.width, canvas.height);
-      } else {
-        canvas.width = quality === 'hd' ? 1600 : 2400;
-        canvas.height = Math.round(canvas.width * 1.25);
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('canvas');
-        drawPolaroidShare(context, art, background, canvas.width, canvas.height);
-      }
-      await saveCanvas(canvas, kind === 'paper' ? 'quiet-moment-polaroid' : 'quiet-moment-share');
+      const [src, buffer] = await Promise.all([new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); }), file.arrayBuffer()]);
+      const nextImage = new Image(); nextImage.onload = () => { const metadata = photoMetadata(buffer); setImage(nextImage); setFileName(file.name); setBackground(centerColor(nextImage)); setPreviewMode('front'); update({ date: metadata.date || settings.date || localDate(), positionX: 50, positionY: 50, zoom: 1, fit: 'cover' }); setDeveloping(!window.matchMedia('(prefers-reduced-motion: reduce)').matches); }; nextImage.onerror = () => setError(t.exportFailed); nextImage.src = src;
     } catch { setError(t.exportFailed); }
   };
+  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => { void upload(event.target.files?.[0]); event.target.value = ''; };
+  const photoOverflow = () => { if (!image) return { x: 0, y: 0 }; const base = (settings.fit === 'cover' ? Math.max : Math.min)(PHOTO_FRAME.size / image.naturalWidth, PHOTO_FRAME.size / image.naturalHeight); return { x: Math.max(0, image.naturalWidth * base * settings.zoom - PHOTO_FRAME.size), y: Math.max(0, image.naturalHeight * base * settings.zoom - PHOTO_FRAME.size) }; };
+  const onPointerDown = (event: PointerEvent<HTMLCanvasElement>) => { if (!image || previewMode !== 'front') return; const rect = event.currentTarget.getBoundingClientRect(), x = (event.clientX - rect.left) / rect.width * POLAROID_WIDTH, y = (event.clientY - rect.top) / rect.height * POLAROID_HEIGHT, overflow = photoOverflow(); if ((!overflow.x && !overflow.y) || x < PHOTO_FRAME.x || x > PHOTO_FRAME.x + PHOTO_FRAME.size || y < PHOTO_FRAME.y || y > PHOTO_FRAME.y + PHOTO_FRAME.size) return; event.currentTarget.setPointerCapture(event.pointerId); dragRef.current = { x: event.clientX, y: event.clientY, positionX: settings.positionX, positionY: settings.positionY }; setIsReframing(true); };
+  const onPointerMove = (event: PointerEvent<HTMLCanvasElement>) => { const drag = dragRef.current; if (!drag) return; const rect = event.currentTarget.getBoundingClientRect(), overflow = photoOverflow(), dx = (event.clientX - drag.x) / rect.width * POLAROID_WIDTH, dy = (event.clientY - drag.y) / rect.height * POLAROID_HEIGHT; update({ positionX: overflow.x ? clamp(drag.positionX - dx / overflow.x * 100) : 50, positionY: overflow.y ? clamp(drag.positionY - dy / overflow.y * 100) : 50 }); };
+  const stopDragging = (event: PointerEvent<HTMLCanvasElement>) => { dragRef.current = null; setIsReframing(false); update({ positionX: Math.abs(settings.positionX - 50) < 2.5 ? 50 : settings.positionX, positionY: Math.abs(settings.positionY - 50) < 2.5 ? 50 : settings.positionY }); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); };
+  const restoreSettings = (next: MomentSettings) => { restoringRef.current = true; setSettings(next); setHistoryTick(value => value + 1); };
+  const undo = () => { const previous = historyRef.current.pop(); if (!previous) return; futureRef.current.push(settings); restoreSettings(previous); }, redo = () => { const next = futureRef.current.pop(); if (!next) return; historyRef.current.push(settings); restoreSettings(next); };
+  const reset = () => { setImage(null); setFileName(''); setBackground('#75879a'); setSettings(defaultSettings()); setPreviewMode('front'); setDeveloping(false); setLastSize(null); setError(''); historyRef.current = []; futureRef.current = []; previousRef.current = null; setHistoryTick(value => value + 1); void clearDraft().catch(() => undefined); };
+  const saveCanvas = (canvas: HTMLCanvasElement, name: string) => new Promise<void>((resolve, reject) => { canvas.toBlob(blob => { if (!blob) { reject(new Error('blob')); return; } setLastSize(blob.size); const link = document.createElement('a'); link.download = `${name}.${format === 'jpeg' ? 'jpg' : 'png'}`; link.href = URL.createObjectURL(blob); link.click(); window.setTimeout(() => URL.revokeObjectURL(link.href), 1000); resolve(); }, format === 'jpeg' ? 'image/jpeg' : 'image/png', .92); });
+  const exportArt = async (kind: ExportKind) => { if (!art) { setError(t.noImage); return; } setError(''); try { const canvas = document.createElement('canvas'); if (kind === 'share') { canvas.width = quality === 'hd' ? 1600 : 2400; canvas.height = Math.round(canvas.width * 1.25); } else if (kind === 'pair') { canvas.width = exportWidth; canvas.height = exportHeight * 2 + Math.round(exportWidth * .035); } else { canvas.width = exportWidth; canvas.height = exportHeight; } const context = canvas.getContext('2d'); if (!context) throw new Error('canvas'); if (kind === 'front') drawPolaroid(context, art, canvas.width, canvas.height); else if (kind === 'back') drawPolaroidBack(context, art, canvas.width, canvas.height); else if (kind === 'pair') drawPolaroidPair(context, art, canvas.width, canvas.height); else drawPolaroidShare(context, art, background, canvas.width, canvas.height); await saveCanvas(canvas, `quiet-moment-${kind}`); } catch { setError(t.exportFailed); } };
 
-  const styles: { key: PolaroidStyle; title: string; hint: string }[] = [
-    { key: 'first', title: t.first, hint: t.firstHint },
-    { key: 'memory', title: t.memory, hint: t.memoryHint },
-    { key: 'night', title: t.night, hint: t.nightHint },
-  ];
+  const styles: { key: PolaroidStyle; title: string; hint: string }[] = [{ key: 'first', title: t.first, hint: t.firstHint }, { key: 'memory', title: t.memory, hint: t.memoryHint }, { key: 'night', title: t.night, hint: t.nightHint }];
+  const previewLabels: { key: PreviewMode; label: string }[] = [{ key: 'front', label: t.front }, { key: 'back', label: t.back }, { key: 'share', label: t.share }];
 
   return <>
-    <section className="workspace polaroid-workspace">
-      <header className="topbar">
-        <div className="crumbs"><span>{t.project}</span><b>/</b><strong>{t.module}</strong></div>
-        <div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>中</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>EN</button></div><button className="quiet-button" type="button" onClick={reset}>{t.reset}</button><button className="export-button" type="button" disabled={!image} onClick={() => void exportArt('paper')}><span>{t.export}</span><span className="arrow">↗</span></button></div>
-      </header>
-      <div className="polaroid-area">
-        <div className="polaroid-heading"><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.module}</h1></div><p>{t.headline}</p></div>
-        <div className="polaroid-stage" style={{ '--moment-color': background } as React.CSSProperties}>
-          {image ? <div className={`polaroid-preview ${developing ? 'developing' : ''}`}>
-            <canvas ref={canvasRef} width={600} height={750} aria-label={t.module} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={stopDragging} onPointerCancel={stopDragging} />
-            {developing && <div className="developing-layer"><span>{t.developing}</span><button type="button" onClick={() => setDeveloping(false)}>{t.revealNow}</button></div>}
-          </div> : <button className="polaroid-empty" type="button" onClick={() => inputRef.current?.click()}><span>＋</span><strong>{t.empty}</strong><small>{t.uploadHint}</small></button>}
-        </div>
-        <div className="polaroid-stage-footer"><span>{image ? t.dragHint : t.note}</span><b>{fileName || '—'}</b></div>
-      </div>
+    <section className="workspace polaroid-workspace"><header className="topbar"><div className="crumbs"><span>{t.project}</span><b>/</b><strong>{t.module}</strong></div><div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>中</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>EN</button></div><button className="quiet-button" type="button" onClick={reset}>{t.reset}</button><button className="export-button" type="button" disabled={!image} onClick={() => void exportArt(previewMode)}><span>{t.export}</span><span className="arrow">↗</span></button></div></header>
+      <div className="polaroid-area"><div className="polaroid-heading"><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.module}</h1></div><p>{t.headline}</p></div><div className="polaroid-preview-switch" role="tablist" aria-label={t.module}>{previewLabels.map(option => <button key={option.key} role="tab" aria-selected={previewMode === option.key} className={previewMode === option.key ? 'selected' : ''} type="button" onClick={() => setPreviewMode(option.key)}>{option.label}</button>)}</div><div className={`polaroid-stage mode-${previewMode}`} style={{ '--moment-color': background } as React.CSSProperties}>{image ? <div className={`polaroid-preview ${developing ? 'developing' : ''}`}><canvas ref={canvasRef} width={previewMode === 'share' ? 640 : 600} height={previewMode === 'share' ? 800 : 750} aria-label={`${t.module} · ${previewLabels.find(option => option.key === previewMode)?.label}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={stopDragging} onPointerCancel={stopDragging} />{isReframing && previewMode === 'front' && <span className="reframe-guides" aria-hidden="true"><i /><i /></span>}{developing && previewMode === 'front' && <div className="developing-layer"><span>{t.developing}</span><button type="button" onClick={() => setDeveloping(false)}>{t.revealNow}</button></div>}</div> : <button className="polaroid-empty" type="button" onClick={() => inputRef.current?.click()}><span>＋</span><strong>{t.empty}</strong><small>{t.uploadHint}</small></button>}</div><div className="polaroid-stage-footer"><span>{image && previewMode === 'front' ? t.dragHint : t.note}</span><b>{image ? t.draft : fileName || '—'}</b></div></div>
     </section>
-
-    <aside className="inspector polaroid-inspector">
-      <div className="inspector-header"><span>{t.inspector}</span><span className="status-pill">● {t.live}</span></div>
-      <section className="inspector-section"><div className="section-title"><strong>{t.image}</strong></div><button className="upload-card" type="button" onClick={() => inputRef.current?.click()}><span className="upload-card-icon">↑</span><span><strong>{image ? t.replace : t.upload}</strong><small>{t.uploadHint}</small></span><span className="card-arrow">↗</span></button><input ref={inputRef} className="sr-only" type="file" accept="image/*" onChange={onFileChange} /></section>
-      <section className="inspector-section"><div className="section-title"><strong>{t.style}</strong></div><div className="polaroid-style-grid">{styles.map(option => <button key={option.key} type="button" className={style === option.key ? 'selected' : ''} onClick={() => setStyle(option.key)}><span className={`paper-sample ${option.key}`} /><strong>{option.title}</strong><small>{option.hint}</small></button>)}</div></section>
-      <section className="inspector-section"><div className="section-title"><strong>{t.text}</strong></div><label className="field-label" htmlFor="moment-message">{t.message}</label><textarea id="moment-message" className="polaroid-textarea" maxLength={80} value={message} onChange={event => setMessage(event.target.value)} placeholder={t.placeholder} /><div className="phrase-label">{t.phrases}</div><div className="phrase-list">{phraseOptions[language].map(phrase => <button type="button" key={phrase} onClick={() => setMessage(phrase)}>{phrase}</button>)}</div><div className="polaroid-fields"><label><span>{t.date}</span><input type="date" value={date} onChange={event => setDate(event.target.value)} /></label><label><span>{t.place}</span><input type="text" maxLength={24} value={place} onChange={event => setPlace(event.target.value)} placeholder={t.placePlaceholder} /></label></div></section>
-      <section className="inspector-section"><div className="section-title"><strong>{t.framing}</strong></div><div className="polaroid-fit" role="group" aria-label={t.framing}><button className={fit === 'cover' ? 'selected' : ''} type="button" onClick={() => { setFit('cover'); setZoom(1); }}>{t.crop}</button><button className={fit === 'contain' ? 'selected' : ''} type="button" onClick={() => { setFit('contain'); setZoom(1); setPositionX(50); setPositionY(50); }}>{t.contain}</button></div><label className="field-label polaroid-zoom">{t.zoom}<output>{Math.round(zoom * 100)}%</output><input type="range" min="1" max="2" step=".01" value={zoom} onChange={event => setZoom(Number(event.target.value))} disabled={!image} /></label><button className="add-text" type="button" disabled={!image} onClick={() => { setPositionX(50); setPositionY(50); }}>↺ {t.recenter}</button></section>
-      <section className="inspector-section polaroid-export-section"><div className="section-title"><strong>{t.export}</strong></div><div className="polaroid-fit"><button className={format === 'png' ? 'selected' : ''} type="button" onClick={() => setFormat('png')}>{t.png}</button><button className={format === 'jpeg' ? 'selected' : ''} type="button" onClick={() => setFormat('jpeg')}>{t.jpg}</button></div><div className="polaroid-fit"><button className={quality === 'hd' ? 'selected' : ''} type="button" onClick={() => setQuality('hd')}>{t.hd}</button><button className={quality === 'uhd' ? 'selected' : ''} type="button" onClick={() => setQuality('uhd')}>{t.uhd}</button></div><p className="export-memory"><span>{t.expected}</span><b>{formatBytes(estimatedMemory)}</b></p>{lastSize !== null && <p className="export-memory"><span>{t.lastSize}</span><b>{formatBytes(lastSize)}</b></p>}<button className="polaroid-export primary" type="button" disabled={!image} onClick={() => void exportArt('paper')}>{t.exportPaper}<span>↗</span></button><button className="polaroid-export" type="button" disabled={!image} onClick={() => void exportArt('share')}>{t.exportShare}<span>↗</span></button>{error && <p className="polaroid-error" role="alert">{error}</p>}</section>
-      <div className="inspector-footer">{t.made} <span>✶</span></div>
+    <aside className="inspector polaroid-inspector"><div className="inspector-header"><span>{t.inspector}</span><span className="status-pill">● {t.live}</span></div>
+      <section className="inspector-section"><div className="section-title"><strong>{t.image}</strong></div><button className="upload-card" type="button" onClick={() => inputRef.current?.click()}><span className="upload-card-icon">↑</span><span><strong>{image ? t.replace : t.upload}</strong><small>{fileName || t.uploadHint}</small></span><span className="card-arrow">↗</span></button><input ref={inputRef} className="sr-only" type="file" accept="image/*" onChange={onFileChange} /></section>
+      <section className="inspector-section"><div className="section-title"><strong>{t.style}</strong></div><div className="polaroid-style-grid">{styles.map(option => <button key={option.key} type="button" className={settings.style === option.key ? 'selected' : ''} onClick={() => update({ style: option.key })}><span className={`paper-sample ${option.key}`} style={image ? { backgroundImage: `url(${image.src})` } : undefined} /><strong>{option.title}</strong><small>{option.hint}</small></button>)}</div></section>
+      <section className="inspector-section"><div className="section-title"><strong>{t.text}</strong><button className={`toggle ${settings.showMessage ? 'on' : ''}`} type="button" aria-label={t.showMessage} onClick={() => update({ showMessage: !settings.showMessage })}><span /></button></div><label className="field-label" htmlFor="moment-message">{t.message}<output className="character-count">{settings.message.length}/80</output></label><textarea id="moment-message" className="polaroid-textarea" maxLength={80} value={settings.message} onChange={event => update({ message: event.target.value })} placeholder={t.placeholder} /><div className="phrase-label">{t.phrases}</div><div className="phrase-list">{phraseOptions[language].map(phrase => <button type="button" key={phrase} onClick={() => update({ message: phrase, showMessage: true })}>{phrase}</button>)}</div><div className="polaroid-fields"><label><span>{t.date}</span><input type="date" value={settings.date} onChange={event => update({ date: event.target.value })} /></label><label><span>{t.place}</span><input type="text" maxLength={24} value={settings.place} onChange={event => update({ place: event.target.value })} placeholder={t.placePlaceholder} /></label></div><div className="visibility-row"><span>{t.showMeta}</span><button className={`toggle ${settings.showMeta ? 'on' : ''}`} type="button" onClick={() => update({ showMeta: !settings.showMeta })}><span /></button></div><div className="visibility-row"><span>{t.showMark}</span><button className={`toggle ${settings.showMark ? 'on' : ''}`} type="button" onClick={() => update({ showMark: !settings.showMark })}><span /></button></div></section>
+      <section className="inspector-section"><div className="section-title"><strong>{t.backTitle}</strong></div><label className="field-label" htmlFor="moment-recipient">{t.recipient}</label><input id="moment-recipient" className="text-input" maxLength={24} value={settings.recipient} onChange={event => update({ recipient: event.target.value })} placeholder={t.recipientPlaceholder} /><label className="field-label" htmlFor="moment-back">{t.backMessage}</label><textarea id="moment-back" className="polaroid-textarea back-note" maxLength={260} value={settings.backMessage} onChange={event => update({ backMessage: event.target.value })} placeholder={t.backPlaceholder} /><button className="text-preview-link" type="button" onClick={() => setPreviewMode('back')}>{t.back} ↗</button></section>
+      <section className="inspector-section"><div className="section-title"><strong>{t.framing}</strong><div className="history-actions"><button type="button" disabled={!historyRef.current.length} onClick={undo}>{t.undo}</button><button type="button" disabled={!futureRef.current.length} onClick={redo}>{t.redo}</button><i aria-hidden="true">{historyTick ? '' : ''}</i></div></div><div className="polaroid-fit" role="group" aria-label={t.framing}><button className={settings.fit === 'cover' ? 'selected' : ''} type="button" onClick={() => update({ fit: 'cover', zoom: 1 })}>{t.crop}</button><button className={settings.fit === 'contain' ? 'selected' : ''} type="button" onClick={() => update({ fit: 'contain', zoom: 1, positionX: 50, positionY: 50 })}>{t.contain}</button></div><label className="field-label polaroid-zoom">{t.zoom}<output>{Math.round(settings.zoom * 100)}%</output><input type="range" min="1" max="2" step=".01" value={settings.zoom} onChange={event => update({ zoom: Number(event.target.value) })} disabled={!image} /></label><button className="add-text" type="button" disabled={!image} onClick={() => update({ positionX: 50, positionY: 50 })}>↺ {t.recenter}</button><label className="field-label polaroid-zoom">{t.rotate}<output>{settings.shareRotation}°</output><input type="range" min="-6" max="6" step=".5" value={settings.shareRotation} onChange={event => update({ shareRotation: Number(event.target.value) })} /></label></section>
+      <section className="inspector-section polaroid-export-section"><div className="section-title"><strong>{t.export}</strong></div><div className="polaroid-fit"><button className={format === 'png' ? 'selected' : ''} type="button" onClick={() => setFormat('png')}>{t.png}</button><button className={format === 'jpeg' ? 'selected' : ''} type="button" onClick={() => setFormat('jpeg')}>{t.jpg}</button></div><div className="polaroid-fit"><button className={quality === 'hd' ? 'selected' : ''} type="button" onClick={() => setQuality('hd')}>{t.hd}</button><button className={quality === 'uhd' ? 'selected' : ''} type="button" onClick={() => setQuality('uhd')}>{t.uhd}</button></div><p className="export-memory"><span>{t.dimensions}</span><b>{selectedWidth} × {selectedHeight}</b></p><p className="export-memory"><span>{t.estimatedFile}</span><b>≈ {formatBytes(estimatedFile)}</b></p><p className="export-memory"><span>{t.expected}</span><b>{formatBytes(estimatedMemory)}</b></p>{lastSize !== null && <p className="export-memory"><span>{t.lastSize}</span><b>{formatBytes(lastSize)}</b></p>}<button className="polaroid-export primary" type="button" disabled={!image} onClick={() => void exportArt(previewMode)}>{t.exportCurrent}<span>↗</span></button><button className="polaroid-export" type="button" disabled={!image} onClick={() => void exportArt('pair')}>{t.exportPair}<span>↗</span></button><button className="polaroid-export" type="button" disabled={!image} onClick={() => void exportArt('share')}>{t.exportShare}<span>↗</span></button>{error && <p className="polaroid-error" role="alert">{error}</p>}</section><div className="inspector-footer">{t.made} <span>✶</span></div>
     </aside>
   </>;
 }
