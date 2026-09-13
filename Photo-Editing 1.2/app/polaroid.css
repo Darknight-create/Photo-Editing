@@ -2,19 +2,23 @@
 .polaroid-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 24px; }
 .polaroid-heading h1 { margin: 0; color: var(--ui-text); font-size: 27px; line-height: 1.2; font-weight: 650; letter-spacing: -.03em; text-transform: capitalize; }
 .polaroid-heading > p { max-width: 360px; margin: 0; color: var(--ui-muted); font-size: 14px; line-height: 1.65; }
-.polaroid-preview-switch { display: inline-grid; grid-template-columns: repeat(3, minmax(72px, 1fr)); gap: 3px; margin-bottom: 12px; padding: 3px; border: 1px solid var(--ui-border); border-radius: 9px; background: #fff; }
+.polaroid-preview-switch { display: inline-grid; grid-template-columns: repeat(4, minmax(68px, 1fr)); gap: 3px; margin-bottom: 12px; padding: 3px; border: 1px solid var(--ui-border); border-radius: 9px; background: #fff; }
 .polaroid-preview-switch button { min-height: 36px; padding: 7px 14px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-muted); font-size: 13px; }
 .polaroid-preview-switch button.selected { background: var(--ui-text); color: #fff; box-shadow: 0 2px 7px #20242c1c; }
 .polaroid-stage { --moment-color: #75879a; display: grid; place-items: center; min-height: min(72vh, 790px); padding: 52px; overflow: hidden; border: 1px solid var(--ui-border); border-radius: 12px; background: color-mix(in srgb, var(--moment-color) 28%, #f5f6f8); box-shadow: inset 0 0 100px #ffffff38; }
 .polaroid-stage.mode-back { background: color-mix(in srgb, var(--moment-color) 12%, #ecebe7); }
 .polaroid-stage.mode-share { background: #e9ebef; }
+.polaroid-stage.mode-motion { background: color-mix(in srgb, var(--moment-color) 18%, #e7e9ed); }
 .polaroid-preview { position: relative; width: min(100%, 500px); filter: drop-shadow(0 24px 25px #20242c2b); transform: rotate(-.35deg); }
+.mode-motion .polaroid-preview { width: min(100%, 540px); filter: drop-shadow(0 18px 32px #20242c1e); transform: none; }
 .polaroid-preview canvas { display: block; width: 100%; height: auto; background: #fbfaf5; cursor: grab; touch-action: none; user-select: none; }
 .polaroid-preview canvas:active { cursor: grabbing; }
 .reframe-guides { position: absolute; inset: 6% 7.5% 26%; pointer-events: none; }
 .reframe-guides i { position: absolute; display: block; background: #ffffffb8; box-shadow: 0 0 0 1px #20242c1c; }
 .reframe-guides i:first-child { top: 0; bottom: 0; left: 50%; width: 1px; }
 .reframe-guides i:last-child { top: 50%; right: 0; left: 0; height: 1px; }
+.motion-replay { position: absolute; right: 14px; bottom: 14px; min-height: 36px; padding: 8px 12px; border: 1px solid #ffffff80; border-radius: 7px; background: #20242cb8; color: #fff; font-size: 12px; font-weight: 600; backdrop-filter: blur(10px); }
+.motion-replay:hover { background: #20242ce8; transform: translateY(-1px); }
 .polaroid-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; width: min(100%, 500px); aspect-ratio: 4 / 5; padding: 40px; border: 1px dashed #7d8794; background: #ffffffd9; color: var(--ui-text); box-shadow: 0 18px 38px #20242c14; }
 .polaroid-empty:hover { border-color: var(--ui-accent); box-shadow: 0 20px 45px #20242c22; transform: translateY(-2px); }
 .polaroid-empty > span { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--ui-accent); color: white; font-size: 32px; font-weight: 300; }
@@ -67,11 +71,14 @@
 .history-actions i { display: none; }
 .polaroid-export { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 43px; margin-top: 8px; padding: 10px 13px; border: 1px solid #adc2ee; border-radius: 8px; background: var(--ui-soft); color: var(--ui-accent); font-size: 13px; font-weight: 600; }
 .polaroid-export.primary { margin-top: 16px; border-color: var(--ui-accent); background: var(--ui-accent); color: #fff; }
+.polaroid-export.motion-export { border-color: #2e3947; background: #2e3947; color: #fff; }
 .polaroid-export:hover:not(:disabled) { box-shadow: 0 4px 12px #285dcc1f; transform: translateY(-1px); }
 .polaroid-export:disabled { opacity: .42; }
 .polaroid-error { margin: 10px 0 0; color: #a23e47; font-size: 12px; line-height: 1.5; }
 .polaroid-export-section .export-memory { display: flex; justify-content: space-between; gap: 16px; }
 .polaroid-export-section .export-memory b { color: var(--ui-text); font-weight: 600; }
+.motion-progress { height: 3px; margin-top: 10px; overflow: hidden; border-radius: 99px; background: var(--ui-border); }
+.motion-progress span { display: block; height: 100%; border-radius: inherit; background: var(--ui-accent); transition: width .12s linear; }
 
 html[data-theme='dark'] .polaroid-stage { background: color-mix(in srgb, var(--moment-color) 22%, #1a2029); box-shadow: inset 0 0 100px #00000024; }
 html[data-theme='dark'] :is(.polaroid-style-grid button, .polaroid-textarea, .polaroid-fields input, .phrase-list button, .polaroid-preview-switch, .history-actions button) { background: #202733; border-color: #455064; color: var(--ui-text); }
@@ -79,6 +86,7 @@ html[data-theme='dark'] :is(.polaroid-fit) { background: #181e27; }
 html[data-theme='dark'] .polaroid-fit button.selected { background: #303a4b; color: var(--ui-accent); }
 html[data-theme='dark'] .polaroid-preview-switch button.selected { background: #e6eaf2; color: #1d232d; }
 html[data-theme='dark'] .polaroid-stage.mode-share { background: #171c24; }
+html[data-theme='dark'] .polaroid-stage.mode-motion { background: color-mix(in srgb, var(--moment-color) 15%, #171c24); }
 html[data-theme='dark'] .polaroid-preview { color-scheme: light; }
 @media (max-width: 1000px) { .polaroid-area { padding: 24px; } .polaroid-stage { padding: 36px; } }
 @media (max-width: 760px) { .polaroid-area { padding: 22px 18px; } .polaroid-heading { align-items: start; flex-direction: column; gap: 10px; } .polaroid-heading > p { max-width: none; } .polaroid-stage { min-height: auto; padding: 28px; } .polaroid-inspector { overflow: visible; } }

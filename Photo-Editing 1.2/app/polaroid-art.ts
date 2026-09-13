@@ -136,7 +136,7 @@ export function drawPolaroid(ctx: CanvasRenderingContext2D, art: PolaroidArt, wi
   ctx.restore();
 }
 
-export function drawPolaroidBack(ctx: CanvasRenderingContext2D, art: PolaroidArt, width = POLAROID_WIDTH, height = POLAROID_HEIGHT) {
+export function drawPolaroidBack(ctx: CanvasRenderingContext2D, art: PolaroidArt, width = POLAROID_WIDTH, height = POLAROID_HEIGHT, reveal = 1) {
   const token = styleTokens[art.style];
   ctx.save();
   ctx.scale(width / POLAROID_WIDTH, height / POLAROID_HEIGHT);
@@ -159,7 +159,14 @@ export function drawPolaroidBack(ctx: CanvasRenderingContext2D, art: PolaroidArt
   if (value) {
     ctx.font = '500 49px Georgia, "Songti SC", "STSong", serif';
     const lines = wrappedLines(ctx, value, 930, 10);
-    lines.forEach((line, index) => ctx.fillText(line, 128, 260 + index * 82));
+    const visibleLines = Math.max(0, Math.ceil(lines.length * Math.min(1, Math.max(0, reveal))));
+    lines.slice(0, visibleLines).forEach((line, index) => {
+      const lineStart = index / Math.max(1, lines.length);
+      const lineProgress = Math.min(1, Math.max(0, (reveal - lineStart) * lines.length));
+      ctx.globalAlpha = lineProgress;
+      ctx.fillText(line, 128, 260 + index * 82);
+    });
+    ctx.globalAlpha = 1;
   }
   ctx.globalAlpha = .52;
   ctx.font = '500 23px ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -212,4 +219,47 @@ export function drawPolaroidPair(ctx: CanvasRenderingContext2D, art: PolaroidArt
   ctx.translate(0, paperHeight + gap);
   drawPolaroidBack(ctx, art, width, paperHeight);
   ctx.restore();
+}
+
+export function drawPolaroidLiveFrame(ctx: CanvasRenderingContext2D, art: PolaroidArt, background: string, progress: number, width: number, height: number) {
+  const p = Math.min(1, Math.max(0, progress));
+  ctx.clearRect(0, 0, width, height);
+  const gradient = ctx.createRadialGradient(width * .36, height * .22, 0, width * .5, height * .5, height * .82);
+  gradient.addColorStop(0, mixWithWhite(background, .56));
+  gradient.addColorStop(1, mixWithWhite(background, .84));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  const flipStart = .30, flipEnd = .54;
+  const flipProgress = Math.min(1, Math.max(0, (p - flipStart) / (flipEnd - flipStart)));
+  const angle = flipProgress * Math.PI;
+  const frontVisible = angle <= Math.PI / 2;
+  const horizontalScale = Math.max(.025, Math.abs(Math.cos(angle)));
+  const lift = p < flipStart ? Math.sin(p / flipStart * Math.PI) * .012 : flipProgress < 1 ? Math.sin(flipProgress * Math.PI) * .045 : 0;
+  const breath = p < flipStart ? 1 + Math.sin(p / flipStart * Math.PI) * .012 : 1;
+  const targetWidth = width * .70;
+  const targetHeight = targetWidth * POLAROID_HEIGHT / POLAROID_WIDTH;
+  const paper = document.createElement('canvas');
+  paper.width = Math.max(900, Math.round(targetWidth));
+  paper.height = Math.max(1125, Math.round(targetHeight));
+  const paperContext = paper.getContext('2d');
+  if (!paperContext) return;
+  const reveal = Math.min(1, Math.max(0, (p - .58) / .22));
+  if (frontVisible) drawPolaroid(paperContext, art, paper.width, paper.height);
+  else drawPolaroidBack(paperContext, art, paper.width, paper.height, reveal);
+
+  ctx.save();
+  ctx.translate(width / 2, height / 2 - height * lift);
+  ctx.scale(horizontalScale * breath, breath);
+  ctx.shadowColor = `rgba(25, 32, 38, ${.16 + lift * 4})`;
+  ctx.shadowBlur = width * (.025 + lift * .65);
+  ctx.shadowOffsetY = width * (.018 + lift * .45);
+  ctx.drawImage(paper, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight);
+  ctx.restore();
+
+  ctx.fillStyle = '#28303878';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.font = `500 ${Math.max(12, Math.round(width * .018))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.fillText(frontVisible ? 'THE MOMENT' : 'THE WORDS BEHIND IT', width / 2, height * .965);
 }
