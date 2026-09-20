@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ThemeSwitch from './theme-switch';
 import { centerColor, drawPhoto, drawTicket, photoMetadata, TICKET_HEIGHT as H, TICKET_WIDTH as W, type TextRegion, type TicketArt, type TicketField, type TicketStyle, type TicketText } from './ticket-art';
+import { readDraft, saveDraft } from './draft-store';
 
 const copy = {
   zh: {
@@ -43,12 +44,16 @@ export default function TicketModule({ language, setLanguage }: { language: 'zh'
   const [regions, setRegions] = useState<TextRegion[]>([]);
   const [editing, setEditing] = useState<TicketField | null>(null);
   const [draft, setDraft] = useState('');
+  const [draftReady, setDraftReady] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const preview = useRef<HTMLCanvasElement>(null);
   const request = useRef(0);
   const photoDrag = useRef<{ pointerId: number; clientX: number; clientY: number; x: number; y: number } | null>(null);
   useEffect(() => () => { request.current++; }, []);
   const art: TicketArt | null = image ? { image, background, style, text } : null;
+
+  useEffect(() => { void readDraft<{ src: string; style: TicketStyle; text: TicketText; background: string; ticketFirst: boolean; fit: 'cover' | 'contain'; photoPosition: { x: number; y: number } }>('ticket-v2').then(saved => { if (!saved) { setDraftReady(true); return; } setStyle(saved.style); setText(saved.text); setBackground(saved.background); setTicketFirst(saved.ticketFirst); setFit(saved.fit); setPhotoPosition(saved.photoPosition); if (!saved.src) { setDraftReady(true); return; } const restored = new Image(); restored.onload = () => { setImage(restored); setDraftReady(true); }; restored.onerror = () => setDraftReady(true); restored.src = saved.src; }).catch(() => setDraftReady(true)); }, []);
+  useEffect(() => { if (!draftReady) return; const timer = window.setTimeout(() => { void saveDraft('ticket-v2', { src: image?.src || '', style, text, background, ticketFirst, fit, photoPosition }); }, 450); return () => window.clearTimeout(timer); }, [draftReady, image, style, text, background, ticketFirst, fit, photoPosition]);
 
   useEffect(() => {
     const ctx = preview.current?.getContext('2d');

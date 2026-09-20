@@ -63,9 +63,12 @@ button:disabled { cursor: not-allowed; }
 .upload-hint { justify-content: center; white-space: normal; line-height: 1.7; }
 .upload-hint button { color: var(--ui-accent); font-size: 13px; font-weight: 600; border-color: #b6c9f0; }
 .upload-icon { color: var(--ui-accent); }
-.inspector { display: flex; min-height: 0; background: white; border-color: var(--ui-border); padding: 26px 24px; }
+.inspector { display: flex; position: sticky; top: 66px; align-self: start; max-height: calc(100dvh - 66px); overflow-y: auto; min-height: 0; background: white; border-color: var(--ui-border); padding: 26px 24px; }
 .inspector-header { margin-bottom: 26px; font-size: 15px; font-weight: 600; letter-spacing: 0; }
 .status-pill { color: var(--ui-muted); font-size: 12px; font-weight: 400; }
+.status-pill.save-saving { color: #8a6f32; }
+.status-pill.save-failed, .save-failed { color: #a64e57; }
+.save-saved { color: #66816e; }
 .inspector-section, .gallery-inspector .inspector-section { margin-bottom: 24px; padding-bottom: 24px; border-color: var(--ui-border); }
 .section-title { font-size: 14px; gap: 8px; }
 .section-title > span:first-child { display: none; }
@@ -134,7 +137,7 @@ button:disabled { cursor: not-allowed; }
 .collage-meta { color: var(--ui-muted); font-size: 12px; }
 @media (min-width: 1600px) { .editor-shell { grid-template-columns: minmax(0, 1fr) 360px; } .inspector { padding-inline: 30px; } }
 @media (max-width: 1000px) { .editor-shell { grid-template-columns: minmax(0, 1fr) 290px; } .sidebar { gap: 12px; padding-inline: 20px; } .sidebar-footer { display: none; } .canvas-area, .gallery-area, .collage-area { padding: 24px; } .topbar { padding-inline: 24px; } .canvas-heading, .gallery-heading { align-items: start; flex-direction: column; gap: 10px; } .inspector { padding-inline: 18px; } .canvas-controls { grid-template-columns: auto 1fr; } .image-count { display: none; } }
-@media (max-width: 760px) { .editor-shell { display: block; } .sidebar { padding: 10px 12px; gap: 10px; min-height: 64px; } .project-name { display: none; } .tool-list { flex: 1; overflow-x: auto; } .tool-button { justify-content: center; flex: 1; padding: 9px 10px; font-size: 13px; } .tool-icon { display: none; } .topbar { padding: 12px 18px; height: auto; min-height: 66px; } .crumbs span, .crumbs b { display: none; } .canvas-area, .gallery-area, .collage-area { padding: 22px 18px; } .inspector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; border-left: 0; border-top: 1px solid var(--ui-border); padding: 24px; } .inspector-header, .inspector-footer { grid-column: 1 / -1; } .canvas-note { display: block; max-width: none; } .canvas-controls { gap: 12px; } .gallery-frame-footer { gap: 8px; } }
+@media (max-width: 760px) { .editor-shell { display: block; } .sidebar { padding: 10px 12px; gap: 10px; min-height: 64px; } .project-name { display: none; } .tool-list { flex: 1; overflow-x: auto; } .tool-button { justify-content: center; flex: 0 0 auto; padding: 9px 10px; font-size: 13px; } .tool-icon { display: none; } .topbar { padding: 12px 18px; height: auto; min-height: 66px; } .crumbs span, .crumbs b { display: none; } .canvas-area, .gallery-area, .collage-area { padding: 22px 18px; } .inspector { display: grid; position: static; max-height: none; overflow: visible; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; border-left: 0; border-top: 1px solid var(--ui-border); padding: 24px; } .inspector-header, .inspector-footer { grid-column: 1 / -1; } .canvas-note { display: block; max-width: none; } .canvas-controls { gap: 12px; } .gallery-frame-footer { gap: 8px; } }
 @media (max-width: 480px) { .brand-mark { width: 32px; height: 32px; flex-basis: 32px; font-size: 15px; } .sidebar { gap: 8px; } .tool-button { padding-inline: 8px; font-size: 12px; } .tool-list { gap: 2px; } .top-actions { gap: 8px; } .export-button { padding-inline: 12px; gap: 8px; font-size: 13px; } .quiet-button { display: none; } .canvas-heading h1, .gallery-heading h1 { font-size: 24px; } .canvas-note { font-size: 12px; } .inspector { display: block; padding: 24px 18px; } .empty-cell small { font-size: 11px; } .plus-glyph { width: 32px; height: 32px; font-size: 24px; } .collage-pane-label { font-size: 11px; } .gallery-footer-actions { flex-wrap: wrap; gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 

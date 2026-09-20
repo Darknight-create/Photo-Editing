@@ -3,6 +3,7 @@ import './globals.css';
 import './studio.css';
 import './ticket.css';
 import './polaroid.css';
+import './creative.css';
 
 export const metadata: Metadata = {
   title: 'Photo-Editing 1.2',

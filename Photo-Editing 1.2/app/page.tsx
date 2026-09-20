@@ -4,6 +4,8 @@ import { ChangeEvent, DragEvent, PointerEvent, useEffect, useMemo, useRef, useSt
 import ThemeSwitch from './theme-switch';
 import TicketModule from './ticket-module';
 import PolaroidModule from './polaroid-module';
+import { FilmstripModule, MoodPaletteModule } from './creative-modules';
+import { clearDraft, readDraft, saveDraft } from './draft-store';
 
 type Language = 'zh' | 'en';
 type Slot = {
@@ -214,10 +216,14 @@ function GalleryModule({ t, language, setLanguage, active }: { t: AppCopy; langu
   const [includeArrows, setIncludeArrows] = useState(true);
   const [exportQuality, setExportQuality] = useState<ExportQuality>('hd');
   const [lastExportSize, setLastExportSize] = useState<number | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
   const activeImage = images[activeIndex];
   const ratio = activeImage ? activeImage.width / activeImage.height : 16 / 9;
   const isPortrait = Boolean(activeImage && activeImage.height > activeImage.width);
   const exportSpec = activeImage ? getGalleryExportSpec(activeImage, exportQuality) : null;
+
+  useEffect(() => { void readDraft<{ images: GalleryImage[]; activeIndex: number; title: string; includeArrows: boolean; exportQuality: ExportQuality }>('gallery-v2').then(saved => { if (saved) { setImages(saved.images || []); setActiveIndex(saved.activeIndex || 0); setTitle(saved.title || t.galleryTitle); setIncludeArrows(saved.includeArrows ?? true); setExportQuality(saved.exportQuality || 'hd'); } setDraftReady(true); }).catch(() => setDraftReady(true)); }, []);
+  useEffect(() => { if (!draftReady) return; const timer = window.setTimeout(() => { void saveDraft('gallery-v2', { images, activeIndex, title, includeArrows, exportQuality }); }, 450); return () => window.clearTimeout(timer); }, [draftReady, images, activeIndex, title, includeArrows, exportQuality]);
 
   useEffect(() => {
     if (!active) return;
@@ -370,6 +376,7 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
   const [selectionMode, setSelectionMode] = useState(false);
   const [exchangeMode, setExchangeMode] = useState(false);
   const [selection, setSelection] = useState<PatchSelection | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadTargetRef = useRef<CollagePane>('upper');
   const uploadModeRef = useRef<'single' | 'both'>('single');
@@ -377,6 +384,9 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
   const selectionStartRef = useRef<{ pane: CollagePane; pointerId: number; x: number; y: number } | null>(null);
   const patchDragRef = useRef<{ id: number; pointerId: number; clientX: number; clientY: number; centerX: number; centerY: number } | null>(null);
   const readyCount = Number(Boolean(images.upper.src)) + Number(Boolean(images.lower.src));
+
+  useEffect(() => { void readDraft<{ images: Record<CollagePane, CollageImage>; patches: CollagePatch[] }>('collage-v2').then(saved => { if (saved) { setImages(saved.images); setPatches(saved.patches || []); } setDraftReady(true); }).catch(() => setDraftReady(true)); }, []);
+  useEffect(() => { if (!draftReady) return; const timer = window.setTimeout(() => { void saveDraft('collage-v2', { images, patches }); }, 450); return () => window.clearTimeout(timer); }, [draftReady, images, patches]);
 
   const openUpload = (pane: CollagePane, mode: 'single' | 'both' = 'single') => {
     uploadTargetRef.current = pane;
@@ -701,19 +711,37 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>('zh');
-  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage' | 'ticket' | 'polaroid'>('grid');
+  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage' | 'ticket' | 'polaroid' | 'film' | 'mood'>('grid');
   const t = { ...copy[language], ...collageCopy[language] } as AppCopy;
   const [slots, setSlots] = useState<Slot[]>(emptySlots);
   const [selectedSlot, setSelectedSlot] = useState(4);
   const [zoom, setZoom] = useState(82);
   const [isDragging, setIsDragging] = useState(false);
   const [dragReadyIndex, setDragReadyIndex] = useState<number | null>(null);
+  const [gridDraftReady, setGridDraftReady] = useState(false);
+  const [gridSaveState, setGridSaveState] = useState<'saving' | 'saved' | 'failed'>('saved');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceIndexRef = useRef<number | null>(null);
   const activeSlot = slots[selectedSlot];
   const filledCount = useMemo(() => slots.filter((slot) => Boolean(slot.src)).length, [slots]);
   const draggedIndexRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    void readDraft<Slot[]>('nine-grid-v2').then(saved => {
+      if (saved?.length === 9) setSlots(saved);
+      setGridDraftReady(true);
+    }).catch(() => { setGridSaveState('failed'); setGridDraftReady(true); });
+  }, []);
+
+  useEffect(() => {
+    if (!gridDraftReady) return;
+    const timer = window.setTimeout(() => {
+      setGridSaveState('saving');
+      void saveDraft('nine-grid-v2', slots).then(() => setGridSaveState('saved')).catch(() => setGridSaveState('failed'));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [slots, gridDraftReady]);
 
   const updateSlot = (patch: Partial<Slot>) => {
     setSlots((current) => current.map((slot, index) => index === selectedSlot ? { ...slot, ...patch } : slot));
@@ -820,9 +848,14 @@ export default function Home() {
     if (!context) return;
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, size, size);
-    await Promise.all(slots.map(async (slot, index) => {
+    for (let index = 0; index < slots.length; index += 1) {
+      const slot = slots[index];
       const x = (index % 3) * cell;
       const y = Math.floor(index / 3) * cell;
+      context.save();
+      context.beginPath();
+      context.rect(x, y, cell, cell);
+      context.clip();
       if (slot.src) {
         const image = new Image();
         image.src = slot.src;
@@ -843,7 +876,8 @@ export default function Home() {
         context.fillText(slot.caption, x + cell / 2, y + cell / 2);
         context.restore();
       }
-    }));
+      context.restore();
+    }
     const link = document.createElement('a');
     link.download = 'nine-grid-edit.png';
     link.href = canvas.toDataURL('image/png');
@@ -871,6 +905,12 @@ export default function Home() {
           <button className={`tool-button ${activeModule === 'polaroid' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('polaroid')}>
             <span className="tool-icon">▣</span><span>{language === 'zh' ? '此刻留白' : 'Quiet moment'}</span>
           </button>
+          <button className={`tool-button ${activeModule === 'film' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('film')}>
+            <span className="tool-icon">▥</span><span>{language === 'zh' ? '一日底片' : 'Day film'}</span>
+          </button>
+          <button className={`tool-button ${activeModule === 'mood' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('mood')}>
+            <span className="tool-icon">◐</span><span>{language === 'zh' ? '情绪采样' : 'Mood sampling'}</span>
+          </button>
         </nav>
         <div className="sidebar-footer"><span className="tiny-dot" /><span>{t.local}</span></div>
       </aside>
@@ -879,7 +919,7 @@ export default function Home() {
       <section className="workspace">
         <header className="topbar">
           <div className="crumbs"><span>{t.projects}</span><b>/</b><strong>{t.nineGrid}</strong></div>
-          <div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="quiet-button" type="button" onClick={() => setSlots(emptySlots())}>{t.reset}</button><button className="export-button" type="button" onClick={() => void exportGrid()}><span>{t.export}</span><span className="arrow">↗</span></button></div>
+          <div className="top-actions"><ThemeSwitch language={language} /><div className="language-switch" aria-label={t.switchLabel}><span>{t.language}</span><button className={language === 'zh' ? 'chosen' : ''} type="button" onClick={() => setLanguage('zh')}>{t.chinese}</button><i>/</i><button className={language === 'en' ? 'chosen' : ''} type="button" onClick={() => setLanguage('en')}>{t.english}</button></div><button className="quiet-button" type="button" onClick={() => { setSlots(emptySlots()); void clearDraft('nine-grid-v2'); }}>{t.reset}</button><button className="export-button" type="button" disabled={!filledCount} onClick={() => void exportGrid()}><span>{t.export}</span><span className="arrow">↗</span></button></div>
         </header>
         <div className="canvas-area">
           <div className="canvas-heading"><div><p className="eyebrow">PHOTO STUDIO / 01 · 3 × 3</p><h1>{t.nineGrid}</h1></div><p className="canvas-note">{language === 'zh' ? '单击选中 · 双击上传 · 长按拖动排序' : 'Click to select · Double-click to upload · Hold to reorder'}</p></div>
@@ -899,8 +939,8 @@ export default function Home() {
       </section>
 
       <aside className="inspector">
-        <div className="inspector-header"><span>{t.inspector}</span><span className="status-pill">● {t.live}</span></div>
-        <section className="inspector-section"><div className="section-title"><span>01</span><strong>{t.images}</strong><span className="section-count">{filledCount}/9</span></div><p className="section-copy">{t.imageHelp}</p><button className="upload-card" type="button" onClick={() => openUpload(null)}><span className="upload-card-icon">↥</span><span><strong>{t.upload}</strong><small>{t.uploadHint}</small></span><span className="card-arrow">↗</span></button><div className="selected-tile"><span>{t.selected}</span><b>{t.tile} {selectedSlot + 1}{t.tileSuffix}</b></div><input ref={fileInputRef} className="sr-only" type="file" accept="image/*" multiple onChange={onFileChange} /></section>
+        <div className="inspector-header"><span>{t.inspector}</span><span className={`status-pill save-${gridSaveState}`}>● {gridSaveState === 'saving' ? (language === 'zh' ? '保存中' : 'saving') : gridSaveState === 'failed' ? (language === 'zh' ? '保存失败' : 'save failed') : (language === 'zh' ? '已保存' : 'saved')}</span></div>
+        <section className="inspector-section"><div className="section-title"><span>01</span><strong>{t.images}</strong><span className="section-count">{filledCount}/9</span></div><p className="section-copy">{language === 'zh' ? '单击选择宫格，双击上传；有图片时长按 0.5 秒拖动排序。' : 'Click to select, double-click to upload, or hold an image for 0.5s to reorder.'}</p><button className="upload-card" type="button" onClick={() => openUpload(null)}><span className="upload-card-icon">↥</span><span><strong>{t.upload}</strong><small>{t.uploadHint}</small></span><span className="card-arrow">↗</span></button><div className="selected-tile"><span>{t.selected}</span><b>{t.tile} {selectedSlot + 1}{t.tileSuffix}</b></div><button className="add-text replace-selected" type="button" onClick={() => openUpload(selectedSlot)}>{activeSlot.src ? (language === 'zh' ? '替换当前图片' : 'replace selected image') : (language === 'zh' ? '添加到当前宫格' : 'add to selected tile')}</button><input ref={fileInputRef} className="sr-only" type="file" accept="image/*" multiple onChange={onFileChange} /></section>
         <section className="inspector-section text-section"><div className="section-title"><span>02</span><strong>{t.type}</strong><button className={`toggle ${activeSlot.captionVisible ? 'on' : ''}`} type="button" onClick={() => updateSlot({ captionVisible: !activeSlot.captionVisible })} aria-label={activeSlot.captionVisible ? t.hideText : t.showText}><span /></button></div><label className="field-label" htmlFor="overlay-text">{t.caption}</label><input id="overlay-text" className="text-input" value={activeSlot.caption} onChange={(event) => updateSlot({ caption: event.target.value })} placeholder={t.placeholder} /><div className="control-row"><label className="field-label">{t.size} <output>{activeSlot.fontSize}px</output></label><input className="range" type="range" min="18" max="58" value={activeSlot.fontSize} onChange={(event) => updateSlot({ fontSize: Number(event.target.value) })} /></div><div className="control-row color-row"><span className="field-label">{t.color}</span><div className="color-swatches"><button className={`swatch yellow ${activeSlot.captionColor === '#f4dd63' ? 'chosen' : ''}`} type="button" aria-label={t.yellow} onClick={() => updateSlot({ captionColor: '#f4dd63' })} /><button className={`swatch ink ${activeSlot.captionColor === '#1f2a27' ? 'chosen' : ''}`} type="button" aria-label={t.ink} onClick={() => updateSlot({ captionColor: '#1f2a27' })} /><button className={`swatch white ${activeSlot.captionColor === '#f8f4e9' ? 'chosen' : ''}`} type="button" aria-label={t.white} onClick={() => updateSlot({ captionColor: '#f8f4e9' })} /></div></div><button className="add-text" type="button" onClick={() => updateSlot({ caption: language === 'zh' ? '新的文字' : 'new note', captionVisible: true })}>＋ {t.addText}</button></section>
         <section className="inspector-section details-section"><div className="section-title"><span>03</span><strong>{t.details}</strong></div><div className="detail-row"><span>{t.canvas}</span><b>{t.square}</b></div><div className="detail-row"><span>{t.spacing}</span><b>{t.none}</b></div><div className="detail-row"><span>{t.quality}</span><b>{t.high}</b></div></section>
         <div className="inspector-footer">{t.made} <span>✦</span></div>
@@ -909,7 +949,9 @@ export default function Home() {
       <div className={`module-view ${activeModule === 'gallery' ? 'active' : ''}`}><GalleryModule t={t} language={language} setLanguage={setLanguage} active={activeModule === 'gallery'} /></div>
       <div className={`module-view ${activeModule === 'collage' ? 'active' : ''}`}><CollageModule t={t} language={language} setLanguage={setLanguage} /></div>
       <div className={`module-view ${activeModule === 'ticket' ? 'active' : ''}`}><TicketModule language={language} setLanguage={setLanguage} /></div>
-      <div className={`module-view ${activeModule === 'polaroid' ? 'active' : ''}`}><PolaroidModule language={language} setLanguage={setLanguage} /></div>
+      <div className={`module-view ${activeModule === 'polaroid' ? 'active' : ''}`}><PolaroidModule language={language} setLanguage={setLanguage} active={activeModule === 'polaroid'} /></div>
+      <div className={`module-view ${activeModule === 'film' ? 'active' : ''}`}><FilmstripModule language={language} setLanguage={setLanguage} /></div>
+      <div className={`module-view ${activeModule === 'mood' ? 'active' : ''}`}><MoodPaletteModule language={language} setLanguage={setLanguage} /></div>
     </main>
   );
 }

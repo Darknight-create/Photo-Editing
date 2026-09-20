@@ -1,0 +1,21 @@
+.creative-area { width: 100%; max-width: 1000px; padding: 34px 42px 56px; margin: 0 auto; }
+.creative-area h1 { margin: 0; color: var(--ui-text); font-size: clamp(30px, 4vw, 48px); letter-spacing: -.045em; }
+.creative-lead { max-width: 560px; margin: 12px 0 28px; color: var(--ui-muted); font-size: 14px; line-height: 1.75; }
+.film-preview { display: grid; gap: 8px; max-width: 720px; padding: 34px; background: #181a19; box-shadow: 0 16px 48px #20242c20; }
+.film-preview figure { margin: 0; padding: 18px 18px 13px; background: #eee8da; }
+.film-preview img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+.film-preview figcaption { margin-top: 10px; color: #30332f; font: 12px ui-monospace, monospace; }
+.film-preview > button, .mood-preview > button { display: grid; place-items: center; gap: 12px; width: 100%; min-height: 420px; border: 1px dashed #7b827d; background: transparent; color: #dadfd9; }
+.film-preview > button b, .mood-preview > button b { font-size: 40px; font-weight: 300; }
+.mood-preview { max-width: 720px; padding: 34px; background: #f5f1e8; box-shadow: 0 16px 48px #20242c18; }
+.mood-preview img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+.mood-preview h2 { max-width: 600px; margin: 34px 0; color: #202421; font: 600 clamp(24px, 4vw, 44px)/1.25 Georgia, serif; }
+.mood-preview > div, .palette-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mood-preview i { display: block; aspect-ratio: 1; }
+.palette-row { margin-top: 18px; }
+.palette-row i { display: block; height: 48px; border-radius: 7px; }
+.creative-textarea { width: 100%; min-height: 92px; resize: vertical; padding: 12px; border: 1px solid #cdd3de; border-radius: 7px; background: #fff; color: var(--ui-text); font: inherit; line-height: 1.6; }
+.creative-export { display: flex; justify-content: space-between; width: 100%; min-height: 44px; padding: 12px 14px; border: 0; border-radius: 8px; background: var(--ui-accent); color: #fff; font-weight: 600; }
+.creative-export:disabled { opacity: .38; }
+html[data-theme='dark'] .creative-textarea { background: #202733; border-color: #455064; color: var(--ui-text); }
+@media (max-width: 760px) { .creative-area { padding: 26px 18px 40px; } .film-preview, .mood-preview { padding: 18px; } }
