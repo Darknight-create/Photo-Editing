@@ -4,7 +4,7 @@ import { ChangeEvent, DragEvent, PointerEvent, useEffect, useMemo, useRef, useSt
 import ThemeSwitch from './theme-switch';
 import TicketModule from './ticket-module';
 import PolaroidModule from './polaroid-module';
-import { FilmstripModule, MoodPaletteModule } from './creative-modules';
+import { PaperJourneyModule, TimeOverlapModule } from './creative-modules';
 import { clearDraft, readDraft, saveDraft } from './draft-store';
 
 type Language = 'zh' | 'en';
@@ -711,7 +711,7 @@ function CollageModule({ t, language, setLanguage }: { t: AppCopy; language: Lan
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>('zh');
-  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage' | 'ticket' | 'polaroid' | 'film' | 'mood'>('grid');
+  const [activeModule, setActiveModule] = useState<'grid' | 'gallery' | 'collage' | 'ticket' | 'polaroid' | 'paper' | 'overlap'>('grid');
   const t = { ...copy[language], ...collageCopy[language] } as AppCopy;
   const [slots, setSlots] = useState<Slot[]>(emptySlots);
   const [selectedSlot, setSelectedSlot] = useState(4);
@@ -905,11 +905,11 @@ export default function Home() {
           <button className={`tool-button ${activeModule === 'polaroid' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('polaroid')}>
             <span className="tool-icon">▣</span><span>{language === 'zh' ? '此刻留白' : 'Quiet moment'}</span>
           </button>
-          <button className={`tool-button ${activeModule === 'film' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('film')}>
-            <span className="tool-icon">▥</span><span>{language === 'zh' ? '一日底片' : 'Day film'}</span>
+          <button className={`tool-button ${activeModule === 'paper' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('paper')}>
+            <span className="tool-icon">▧</span><span>{language === 'zh' ? '纸上漫游' : 'Paper journey'}</span>
           </button>
-          <button className={`tool-button ${activeModule === 'mood' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('mood')}>
-            <span className="tool-icon">◐</span><span>{language === 'zh' ? '情绪采样' : 'Mood sampling'}</span>
+          <button className={`tool-button ${activeModule === 'overlap' ? 'active' : ''}`} type="button" onClick={() => setActiveModule('overlap')}>
+            <span className="tool-icon">◫</span><span>{language === 'zh' ? '时光重叠' : 'Time overlap'}</span>
           </button>
         </nav>
         <div className="sidebar-footer"><span className="tiny-dot" /><span>{t.local}</span></div>
@@ -950,8 +950,8 @@ export default function Home() {
       <div className={`module-view ${activeModule === 'collage' ? 'active' : ''}`}><CollageModule t={t} language={language} setLanguage={setLanguage} /></div>
       <div className={`module-view ${activeModule === 'ticket' ? 'active' : ''}`}><TicketModule language={language} setLanguage={setLanguage} /></div>
       <div className={`module-view ${activeModule === 'polaroid' ? 'active' : ''}`}><PolaroidModule language={language} setLanguage={setLanguage} active={activeModule === 'polaroid'} /></div>
-      <div className={`module-view ${activeModule === 'film' ? 'active' : ''}`}><FilmstripModule language={language} setLanguage={setLanguage} /></div>
-      <div className={`module-view ${activeModule === 'mood' ? 'active' : ''}`}><MoodPaletteModule language={language} setLanguage={setLanguage} /></div>
+      <div className={`module-view ${activeModule === 'paper' ? 'active' : ''}`}><PaperJourneyModule language={language} setLanguage={setLanguage} /></div>
+      <div className={`module-view ${activeModule === 'overlap' ? 'active' : ''}`}><TimeOverlapModule language={language} setLanguage={setLanguage} /></div>
     </main>
   );
 }
